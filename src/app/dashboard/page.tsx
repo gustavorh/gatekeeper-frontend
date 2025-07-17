@@ -14,7 +14,7 @@ export default function Dashboard() {
         <div className="fixed top-4 right-4 z-10">
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">
-              Welcome, {user?.email}
+              Welcome, {user?.username}
             </span>
             <button
               onClick={logout}

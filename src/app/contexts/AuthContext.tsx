@@ -11,7 +11,7 @@ import { authService } from "../lib/auth";
 
 interface User {
   id: string;
-  email: string;
+  username: string;
   name?: string;
 }
 
@@ -19,11 +19,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (
-    email: string,
-    password: string,
-    rememberMe?: boolean
-  ) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -50,14 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  const login = async (
-    email: string,
-    password: string,
-    rememberMe: boolean = false
-  ) => {
+  const login = async (username: string, password: string) => {
     try {
-      const response = await authService.login({ email, password, rememberMe });
-      authService.setToken(response.token, rememberMe);
+      const response = await authService.login({ username, password });
+      authService.setToken(response.token);
       setUser(response.user);
       setIsAuthenticated(true);
     } catch (error) {

@@ -1,16 +1,15 @@
 const API_BASE_URL = "http://localhost:9000";
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
-  rememberMe?: boolean;
 }
 
 export interface AuthResponse {
   token: string;
   user: {
     id: string;
-    email: string;
+    username: string;
     name?: string;
   };
 }
