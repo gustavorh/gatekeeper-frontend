@@ -23,13 +23,30 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
 
+    // Manual validation
+    if (!email.trim()) {
+      setError("Please enter your email or username");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Please enter your password");
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      await login(email, password, rememberMe);
+      console.log("Attempting login with:", {
+        email: email.trim(),
+        rememberMe,
+      });
+      await login(email.trim(), password, rememberMe);
       router.push("/dashboard");
     } catch (err: any) {
+      console.error("Login error:", err);
       setError(err.message || "Login failed");
     } finally {
       setIsLoading(false);
@@ -99,13 +116,13 @@ export default function LoginPage() {
               Email or Username
             </label>
             <input
-              type="email"
+              type="text"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="Enter your email or username"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
-              required
+              autoFocus
             />
           </div>
 
@@ -125,7 +142,6 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors pr-12"
-                required
               />
               <button
                 type="button"
@@ -220,13 +236,13 @@ export default function LoginPage() {
       {/* Footer */}
       <div className="fixed bottom-4 left-0 right-0 flex justify-between items-center px-6 text-sm text-gray-500">
         <div className="flex space-x-6">
-          <span>© 2024 GateKeeper</span>
+          <span>© {new Date().getFullYear()} GateKeeper</span>
           <button className="hover:text-gray-700">Privacy Policy</button>
           <button className="hover:text-gray-700">Terms of Service</button>
         </div>
         <div className="flex space-x-6">
           <button className="hover:text-gray-700">Support</button>
-          <span>Version 2.1.0</span>
+          <span>Version 0.1.1</span>
         </div>
       </div>
     </div>
