@@ -25,8 +25,8 @@ export const authService = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Login failed");
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || "Login failed");
     }
 
     return response.json();
@@ -42,8 +42,10 @@ export const authService = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Registration failed");
+      const errorData = await response.json();
+      throw new Error(
+        errorData.error || errorData.message || "Registration failed"
+      );
     }
 
     return response.json();

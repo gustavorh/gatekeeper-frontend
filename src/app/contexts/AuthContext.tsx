@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { authService } from "../lib/auth";
+import { useNotification } from "./NotificationContext";
 
 interface User {
   id: string;
@@ -19,7 +20,11 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (
+    username: string,
+    password: string,
+    rememberMe?: boolean
+  ) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -29,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { showSuccess, showError, showInfo } = useNotification();
 
   useEffect(() => {
     const initAuth = () => {
@@ -46,14 +52,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (
+    username: string,
+    password: string,
+    rememberMe: boolean = false
+  ): Promise<boolean> => {
     try {
       const response = await authService.login({ username, password });
-      authService.setToken(response.token);
+      authService.setToken(response.token, rememberMe);
       setUser(response.user);
       setIsAuthenticated(true);
-    } catch (error) {
-      throw error;
+      showSuccess(`¡Bienvenido, ${response.user.username}!`);
+      return true;
+    } catch (error: any) {
+      console.error("Login error:", error);
+      showError(error.message || "Error al iniciar sesión");
+      return false;
     }
   };
 
@@ -61,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authService.logout();
     setUser(null);
     setIsAuthenticated(false);
+    showInfo("Sesión cerrada exitosamente");
   };
 
   return (

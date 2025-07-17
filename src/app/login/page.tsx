@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotification } from "../contexts/NotificationContext";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -10,9 +11,9 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showError } = useNotification();
   const router = useRouter();
 
   useEffect(() => {
@@ -23,30 +24,28 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     // Manual validation
     if (!username.trim()) {
-      setError("Por favor ingresa tu usuario");
+      showError("Por favor ingresa tu usuario");
       return;
     }
 
     if (!password.trim()) {
-      setError("Por favor ingresa tu contraseña");
+      showError("Por favor ingresa tu contraseña");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log("Attempting login with:", {
-        username: username.trim(),
-      });
-      await login(username.trim(), password);
-      router.push("/dashboard");
+      const success = await login(username.trim(), password, rememberMe);
+      if (success) {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
+      // Los errores ahora se manejan en el AuthContext
       console.error("Login error:", err);
-      setError(err.message || "Error al iniciar sesión");
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +121,7 @@ export default function LoginPage() {
               placeholder="Ingresa tu usuario"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
               autoFocus
+              disabled={isLoading}
             />
           </div>
 
@@ -141,11 +141,13 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors pr-12"
+                disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                disabled={isLoading}
               >
                 {showPassword ? (
                   <svg
@@ -195,6 +197,7 @@ export default function LoginPage() {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                disabled={isLoading}
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
                 Recordarme
@@ -203,15 +206,11 @@ export default function LoginPage() {
             <button
               type="button"
               className="text-sm text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
             >
               ¿Olvidaste tu contraseña?
             </button>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
 
           {/* Login Button */}
           <button
@@ -225,7 +224,11 @@ export default function LoginPage() {
           {/* Contact Support */}
           <div className="text-center text-sm text-gray-600">
             ¿No tienes una cuenta?{" "}
-            <button type="button" className="text-blue-600 hover:text-blue-800">
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-800"
+              disabled={isLoading}
+            >
               Contactar Soporte
             </button>
           </div>
