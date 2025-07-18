@@ -212,11 +212,11 @@ export default function Dashboard() {
                         className="px-2 py-1 text-xs font-medium text-white rounded-full"
                         style={{ backgroundColor: "#fe938c" }}
                       >
-                        PRO
+                        BETA
                       </span>
                     </div>
                     <span className="text-xs text-gray-500 font-medium tracking-wide">
-                      Plataforma de Control de Acceso
+                      Control de Acceso
                     </span>
                   </div>
                 </div>
