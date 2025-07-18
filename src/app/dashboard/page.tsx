@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 import ProtectedRoute from "../components/ProtectedRoute";
+import {
+  timeTrackingAPI,
+  statisticsAPI,
+  formatUtils,
+  type CurrentStatus,
+  type TodaySession,
+  type DashboardStats,
+  type TimeEntry,
+  type ButtonStates,
+} from "../lib/api";
 
 interface Activity {
   id: string;
@@ -13,92 +23,148 @@ interface Activity {
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const { showSuccess, showInfo } = useNotification();
+  const { showSuccess, showInfo, showError } = useNotification();
 
-  // Estado del dashboard
+  // Estados del dashboard
   const [currentStatus, setCurrentStatus] = useState<
     "clocked_out" | "clocked_in" | "on_lunch"
   >("clocked_out");
-  const [clockInTime, setClockInTime] = useState<string | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [buttonStates, setButtonStates] = useState<ButtonStates>({
+    clockIn: { enabled: false },
+    clockOut: { enabled: false },
+    startLunch: { enabled: false },
+    resumeShift: { enabled: false },
+  });
+  const [todaySession, setTodaySession] = useState<TodaySession | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+    null
+  );
+  const [activities, setActivities] = useState<TimeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Obtener el nombre del usuario
   const userName = user?.nombre
     ? `${user.nombre} ${user.apellido_paterno || ""}`.trim()
     : user?.rut || "Usuario";
 
+  // Cargar datos del dashboard
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Cargar datos en paralelo
+      const [statusData, todayData, statsData, activitiesData] =
+        await Promise.all([
+          timeTrackingAPI.getCurrentStatus(),
+          timeTrackingAPI.getTodaySession(),
+          statisticsAPI.getDashboardStats(),
+          timeTrackingAPI.getRecentActivities(5),
+        ]);
+
+      setCurrentStatus(statusData.status);
+      setButtonStates(statusData.buttonStates);
+      setTodaySession(todayData);
+      setDashboardStats(statsData);
+      setActivities(activitiesData.activities);
+    } catch (error) {
+      console.error("Error cargando datos del dashboard:", error);
+      showError("Error al cargar los datos del dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
   // Manejar acciones del reloj
-  const handleClockIn = () => {
-    const now = new Date().toLocaleTimeString("es-CL", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setCurrentStatus("clocked_in");
-    setClockInTime(now);
-    addActivity("clock_in");
-    showSuccess("¡Entrada registrada exitosamente!");
-  };
+  const handleClockIn = async () => {
+    try {
+      const result = await timeTrackingAPI.clockIn();
+      setCurrentStatus("clocked_in");
+      setButtonStates(result.buttonStates || buttonStates);
+      showSuccess(result.message);
 
-  const handleClockOut = () => {
-    setCurrentStatus("clocked_out");
-    setClockInTime(null);
-    addActivity("clock_out");
-    showSuccess("¡Salida registrada exitosamente!");
-  };
-
-  const handleStartLunch = () => {
-    setCurrentStatus("on_lunch");
-    addActivity("start_lunch");
-    showInfo("¡Almuerzo iniciado!");
-  };
-
-  const handleResumeShift = () => {
-    setCurrentStatus("clocked_in");
-    addActivity("resume_shift");
-    showSuccess("¡Turno reanudado!");
-  };
-
-  // Agregar actividad al historial
-  const addActivity = (type: Activity["type"]) => {
-    const newActivity: Activity = {
-      id: Date.now().toString(),
-      type,
-      timestamp: new Date().toLocaleString("es-CL"),
-    };
-    setActivities((prev) => [newActivity, ...prev].slice(0, 5)); // Mantener solo las últimas 5
-  };
-
-  // Obtener texto de actividad
-  const getActivityText = (type: Activity["type"]) => {
-    switch (type) {
-      case "clock_in":
-        return "Entrada";
-      case "clock_out":
-        return "Salida";
-      case "start_lunch":
-        return "Inicio de almuerzo";
-      case "resume_shift":
-        return "Fin de almuerzo";
-      default:
-        return type;
+      // Recargar datos
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Error en clock-in:", error);
+      showError(
+        error instanceof Error ? error.message : "Error al registrar entrada"
+      );
     }
   };
 
-  // Obtener ícono de actividad
-  const getActivityIcon = (type: Activity["type"]) => {
-    switch (type) {
-      case "clock_in":
-        return "▶️";
-      case "clock_out":
-        return "⏹️";
-      case "start_lunch":
-        return "🥗";
-      case "resume_shift":
-        return "⏯️";
-      default:
-        return "📝";
+  const handleClockOut = async () => {
+    try {
+      const result = await timeTrackingAPI.clockOut();
+      setCurrentStatus("clocked_out");
+      setButtonStates(result.buttonStates || buttonStates);
+      showSuccess(result.message);
+
+      // Recargar datos
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Error en clock-out:", error);
+      showError(
+        error instanceof Error ? error.message : "Error al registrar salida"
+      );
     }
   };
+
+  const handleStartLunch = async () => {
+    try {
+      const result = await timeTrackingAPI.startLunch();
+      setCurrentStatus("on_lunch");
+      setButtonStates(result.buttonStates || buttonStates);
+      showInfo(result.message);
+
+      // Recargar datos
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Error en start-lunch:", error);
+      showError(
+        error instanceof Error ? error.message : "Error al iniciar almuerzo"
+      );
+    }
+  };
+
+  const handleResumeShift = async () => {
+    try {
+      const result = await timeTrackingAPI.resumeShift();
+      setCurrentStatus("clocked_in");
+      setButtonStates(result.buttonStates || buttonStates);
+      showSuccess(result.message);
+
+      // Recargar datos
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Error en resume-shift:", error);
+      showError(
+        error instanceof Error ? error.message : "Error al reanudar turno"
+      );
+    }
+  };
+
+  // Usar funciones del formatUtils para obtener texto e íconos
+  const getActivityText = (type: string) => formatUtils.getActivityText(type);
+  const getActivityIcon = (type: string) => formatUtils.getActivityIcon(type);
+
+  // Mostrar loading mientras se cargan los datos
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando dashboard...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -326,12 +392,10 @@ export default function Dashboard() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <button
                         onClick={handleClockIn}
-                        disabled={
-                          currentStatus === "clocked_in" ||
-                          currentStatus === "on_lunch"
-                        }
+                        disabled={!buttonStates.clockIn.enabled}
+                        title={buttonStates.clockIn.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          currentStatus === "clocked_out"
+                          buttonStates.clockIn.enabled
                             ? "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -359,9 +423,10 @@ export default function Dashboard() {
 
                       <button
                         onClick={handleClockOut}
-                        disabled={currentStatus === "clocked_out"}
+                        disabled={!buttonStates.clockOut.enabled}
+                        title={buttonStates.clockOut.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          currentStatus !== "clocked_out"
+                          buttonStates.clockOut.enabled
                             ? "border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -389,9 +454,10 @@ export default function Dashboard() {
 
                       <button
                         onClick={handleStartLunch}
-                        disabled={currentStatus !== "clocked_in"}
+                        disabled={!buttonStates.startLunch.enabled}
+                        title={buttonStates.startLunch.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          currentStatus === "clocked_in"
+                          buttonStates.startLunch.enabled
                             ? "border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 text-orange-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -423,9 +489,10 @@ export default function Dashboard() {
 
                       <button
                         onClick={handleResumeShift}
-                        disabled={currentStatus !== "on_lunch"}
+                        disabled={!buttonStates.resumeShift.enabled}
+                        title={buttonStates.resumeShift.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          currentStatus === "on_lunch"
+                          buttonStates.resumeShift.enabled
                             ? "border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 text-green-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -502,10 +569,16 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-green-600">
-                              {clockInTime || "--:--"}
+                              {todaySession?.session?.clockInTime
+                                ? formatUtils.formatTime(
+                                    todaySession.session.clockInTime
+                                  )
+                                : "--:--"}
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
-                              {clockInTime ? "Hoy" : "N/A"}
+                              {todaySession?.session?.clockInTime
+                                ? "Hoy"
+                                : "N/A"}
                             </div>
                           </div>
                         </div>
@@ -517,19 +590,19 @@ export default function Dashboard() {
                               Total de horas hoy
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
-                              {clockInTime && currentStatus !== "clocked_out"
+                              {todaySession?.session?.clockInTime &&
+                              currentStatus !== "clocked_out"
                                 ? "Sesión en curso"
                                 : "Sin sesión activa"}
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-blue-600">
-                              {clockInTime && currentStatus !== "clocked_out"
-                                ? "0.0"
-                                : "0.0"}
+                              {todaySession?.workedHours?.toFixed(1) || "0.0"}
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
-                              {clockInTime && currentStatus !== "clocked_out"
+                              {todaySession?.session?.clockInTime &&
+                              currentStatus !== "clocked_out"
                                 ? "hrs (en curso)"
                                 : "hrs"}
                             </div>
@@ -565,7 +638,9 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-blue-600">
-                              0
+                              {dashboardStats?.weekStats?.totalHours?.toFixed(
+                                1
+                              ) || "0.0"}
                             </span>
                             <div className="text-xs text-gray-500">hrs</div>
                           </div>
@@ -583,7 +658,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-gray-900">
-                              1
+                              {dashboardStats?.monthStats?.totalDays || 0}
                             </span>
                             <div className="text-xs text-gray-500">días</div>
                           </div>
@@ -601,7 +676,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-green-600">
-                              {clockInTime || "--:--"}
+                              {dashboardStats?.averageEntryTime || "--:--"}
                             </span>
                             <div className="text-xs text-gray-500">AM</div>
                           </div>
@@ -651,13 +726,18 @@ export default function Dashboard() {
                                       {getActivityText(activity.type)}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1">
-                                      {activity.timestamp.split(" ")[0]} a las{" "}
-                                      {activity.timestamp.split(" ")[1]}
+                                      {formatUtils.formatDate(
+                                        activity.timestamp
+                                      )}{" "}
+                                      a las{" "}
+                                      {formatUtils.formatTime(
+                                        activity.timestamp
+                                      )}
                                     </div>
                                   </div>
                                   <div className="text-right">
                                     <div className="text-xs text-gray-400">
-                                      {activity.timestamp.split(" ")[2]}
+                                      {activity.isValid ? "✅" : "❌"}
                                     </div>
                                   </div>
                                 </div>
