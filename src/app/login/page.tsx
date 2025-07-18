@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
+import Footer from "../components/Footer";
 
 export default function LoginPage() {
   const [rut, setRut] = useState("");
@@ -130,7 +131,7 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">GateKeeper</h1>
-          <p className="text-gray-600 mt-2">Gestiona tu tiempo con facilidad</p>
+          <p className="text-gray-600 mt-2">Control de Acceso</p>
         </div>
 
         {/* Form */}
@@ -266,20 +267,7 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Footer */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-between items-center px-6 text-sm text-gray-500">
-        <div className="flex space-x-6">
-          <span>© {new Date().getFullYear()} GateKeeper</span>
-          <button className="hover:text-gray-700">
-            Política de Privacidad
-          </button>
-          <button className="hover:text-gray-700">Términos de Servicio</button>
-        </div>
-        <div className="flex space-x-6">
-          <button className="hover:text-gray-700">Soporte</button>
-          <span>Versión 0.1.1</span>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }
