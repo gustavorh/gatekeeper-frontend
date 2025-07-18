@@ -18,6 +18,8 @@ interface User {
   apellido_materno?: string;
   email?: string;
   createdAt?: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 interface AuthContextType {
