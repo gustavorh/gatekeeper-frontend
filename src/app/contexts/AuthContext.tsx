@@ -12,8 +12,12 @@ import { useNotification } from "./NotificationContext";
 
 interface User {
   id: string;
-  username: string;
-  name?: string;
+  rut: string;
+  nombre?: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  email?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -21,7 +25,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (
-    username: string,
+    rut: string,
     password: string,
     rememberMe?: boolean
   ) => Promise<boolean>;
@@ -53,17 +57,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (
-    username: string,
+    rut: string,
     password: string,
     rememberMe: boolean = false
   ): Promise<boolean> => {
-    const result = await authService.login({ username, password });
+    const result = await authService.login({ rut, password });
 
     if (result.success && result.data) {
       authService.setToken(result.data.token, rememberMe);
       setUser(result.data.user);
       setIsAuthenticated(true);
-      showSuccess(`¡Bienvenido, ${result.data.user.username}!`);
+
+      // Create a more user-friendly welcome message
+      const userName = result.data.user.nombre
+        ? `${result.data.user.nombre} ${
+            result.data.user.apellido_paterno || ""
+          }`.trim()
+        : result.data.user.rut;
+
+      showSuccess(`¡Bienvenido, ${userName}!`);
       return true;
     } else {
       showError(result.error || "Error al iniciar sesión");

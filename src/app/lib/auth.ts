@@ -1,7 +1,7 @@
 const API_BASE_URL = "http://localhost:9000";
 
 export interface LoginCredentials {
-  username: string;
+  rut: string;
   password: string;
 }
 
@@ -9,8 +9,12 @@ export interface AuthResponse {
   token: string;
   user: {
     id: string;
-    username: string;
-    name?: string;
+    rut: string;
+    nombre?: string;
+    apellido_paterno?: string;
+    apellido_materno?: string;
+    email?: string;
+    createdAt?: string;
   };
 }
 

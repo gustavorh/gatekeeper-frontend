@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [rut, setRut] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -15,6 +15,39 @@ export default function LoginPage() {
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showError } = useNotification();
   const router = useRouter();
+
+  // RUT formatting functions
+  const cleanRut = (rut: string): string => {
+    return rut.replace(/[.-]/g, "");
+  };
+
+  const formatRut = (rut: string): string => {
+    const cleanedRut = cleanRut(rut);
+
+    if (cleanedRut.length < 2) return cleanedRut;
+
+    const body = cleanedRut.slice(0, -1);
+    const dv = cleanedRut.slice(-1);
+
+    // Add dots every 3 digits from right to left
+    const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+    return `${formattedBody}-${dv}`;
+  };
+
+  const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers and hyphens, remove dots
+    const cleanValue = value.replace(/[^0-9-]/g, "");
+    setRut(cleanValue);
+  };
+
+  const handleRutBlur = () => {
+    if (rut.trim()) {
+      const formattedRut = formatRut(rut);
+      setRut(formattedRut);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -26,8 +59,8 @@ export default function LoginPage() {
     e.preventDefault();
 
     // Manual validation
-    if (!username.trim()) {
-      showError("Por favor ingresa tu usuario");
+    if (!rut.trim()) {
+      showError("Por favor ingresa tu RUT");
       return;
     }
 
@@ -38,7 +71,9 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    const success = await login(username.trim(), password, rememberMe);
+    // Send clean RUT to backend (without dots and hyphens)
+    const cleanedRut = cleanRut(rut.trim());
+    const success = await login(cleanedRut, password, rememberMe);
     if (success) {
       router.push("/dashboard");
     }
@@ -100,20 +135,21 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username Input */}
+          {/* RUT Input */}
           <div>
             <label
-              htmlFor="username"
+              htmlFor="rut"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Usuario
+              RUT
             </label>
             <input
               type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ingresa tu usuario"
+              id="rut"
+              value={rut}
+              onChange={handleRutChange}
+              onBlur={handleRutBlur}
+              placeholder="12345678-9"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors text-gray-900 placeholder-gray-500"
               autoFocus
               disabled={isLoading}
