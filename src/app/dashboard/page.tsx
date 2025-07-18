@@ -14,6 +14,7 @@ import {
   type TimeEntry,
   type ButtonStates,
 } from "../lib/api";
+import { useSystemHealth } from "../hooks/useSystemHealth";
 
 interface Activity {
   id: string;
@@ -24,6 +25,13 @@ interface Activity {
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { showSuccess, showInfo, showError } = useNotification();
+  const {
+    isHealthy,
+    status: systemStatus,
+    lastCheck,
+    isChecking,
+    error: healthError,
+  } = useSystemHealth(30000);
 
   // Estados del dashboard
   const [currentStatus, setCurrentStatus] = useState<
@@ -41,6 +49,7 @@ export default function Dashboard() {
   );
   const [activities, setActivities] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHealthTooltip, setShowHealthTooltip] = useState(false);
 
   // Obtener el nombre del usuario
   const userName = user?.nombre
@@ -382,11 +391,129 @@ export default function Dashboard() {
                           Administra tu jornada laboral y descansos
                         </p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <div
+                        className="relative flex items-center space-x-2 cursor-help"
+                        onMouseEnter={() => setShowHealthTooltip(true)}
+                        onMouseLeave={() => setShowHealthTooltip(false)}
+                      >
+                        <div
+                          className={`w-3 h-3 rounded-full ${
+                            isHealthy
+                              ? "bg-green-500 animate-pulse"
+                              : "bg-red-500 animate-pulse"
+                          }`}
+                        ></div>
                         <span className="text-sm font-medium text-gray-600">
-                          Sistema Activo
+                          {isHealthy ? "Sistema Activo" : "Sistema Inactivo"}
                         </span>
+                        {isChecking && (
+                          <svg
+                            className="w-3 h-3 text-gray-400 animate-spin"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        )}
+
+                        {/* Tooltip personalizado */}
+                        {showHealthTooltip && (
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg max-w-xs">
+                              <div className="space-y-1">
+                                {systemStatus ? (
+                                  <>
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        Estado:
+                                      </span>
+                                      <span
+                                        className={`capitalize ${
+                                          systemStatus.status === "healthy"
+                                            ? "text-green-400"
+                                            : "text-red-400"
+                                        }`}
+                                      >
+                                        {systemStatus.status === "healthy"
+                                          ? "Saludable"
+                                          : "Con problemas"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        Base de datos:
+                                      </span>
+                                      <span
+                                        className={
+                                          systemStatus.database === "connected"
+                                            ? "text-green-400"
+                                            : "text-red-400"
+                                        }
+                                      >
+                                        {systemStatus.database === "connected"
+                                          ? "Conectada"
+                                          : "Desconectada"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        Respuesta:
+                                      </span>
+                                      <span className="text-blue-400">
+                                        {systemStatus.responseTime}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        Última verificación:
+                                      </span>
+                                      <span className="text-gray-300">
+                                        {lastCheck
+                                          ? lastCheck.toLocaleTimeString()
+                                          : "N/A"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">
+                                        Versión:
+                                      </span>
+                                      <span className="text-gray-300">
+                                        {systemStatus.version}
+                                      </span>
+                                    </div>
+                                  </>
+                                ) : healthError ? (
+                                  <div className="text-red-400">
+                                    <div className="font-medium">Error:</div>
+                                    <div className="text-xs mt-1">
+                                      {healthError}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-yellow-400">
+                                    Verificando estado del sistema...
+                                  </div>
+                                )}
+                              </div>
+                              {/* Flecha del tooltip */}
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2">
+                                <div className="w-2 h-2 bg-gray-900 rotate-45 transform origin-bottom-left"></div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

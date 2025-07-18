@@ -85,6 +85,17 @@ export interface DashboardStats {
   complianceScore: number;
 }
 
+export interface HealthStatus {
+  status: "healthy" | "unhealthy";
+  timestamp: string;
+  database: "connected" | "disconnected";
+  responseTime: string;
+  version: string;
+  uptime: number;
+  environment: string;
+  error?: string;
+}
+
 export interface TimeTrackingResponse {
   success: boolean;
   message: string;
@@ -123,6 +134,24 @@ async function authenticatedFetch(
     headers,
   });
 }
+
+// Servicios de Health Check
+export const healthAPI = {
+  // Health Check
+  async getHealth(): Promise<HealthStatus> {
+    const response = await fetch(`${API_BASE_URL}/health`);
+
+    if (!response.ok) {
+      // Si la respuesta no es OK, asumimos que el sistema está unhealthy
+      if (response.status === 503) {
+        return response.json(); // El endpoint devuelve la información de error
+      }
+      throw new Error("Error al obtener el estado del sistema");
+    }
+
+    return response.json();
+  },
+};
 
 // Servicios de Time Tracking
 export const timeTrackingAPI = {
