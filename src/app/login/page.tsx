@@ -38,17 +38,12 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    try {
-      const success = await login(username.trim(), password, rememberMe);
-      if (success) {
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      // Los errores ahora se manejan en el AuthContext
-      console.error("Login error:", err);
-    } finally {
-      setIsLoading(false);
+    const success = await login(username.trim(), password, rememberMe);
+    if (success) {
+      router.push("/dashboard");
     }
+
+    setIsLoading(false);
   };
 
   if (authLoading) {

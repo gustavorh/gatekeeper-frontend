@@ -57,16 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     rememberMe: boolean = false
   ): Promise<boolean> => {
-    try {
-      const response = await authService.login({ username, password });
-      authService.setToken(response.token, rememberMe);
-      setUser(response.user);
+    const result = await authService.login({ username, password });
+
+    if (result.success && result.data) {
+      authService.setToken(result.data.token, rememberMe);
+      setUser(result.data.user);
       setIsAuthenticated(true);
-      showSuccess(`¡Bienvenido, ${response.user.username}!`);
+      showSuccess(`¡Bienvenido, ${result.data.user.username}!`);
       return true;
-    } catch (error: any) {
-      console.error("Login error:", error);
-      showError(error.message || "Error al iniciar sesión");
+    } else {
+      showError(result.error || "Error al iniciar sesión");
       return false;
     }
   };
