@@ -24,6 +24,9 @@ export interface WorkSession {
   totalLunchMinutes: number;
   totalWorkHours: number;
   status: "active" | "on_lunch" | "completed" | "overtime_pending";
+  isOvertimeDay: boolean;
+  overtimeMinutes: number;
+  isValidSession: boolean;
 }
 
 export interface ButtonStates {
@@ -250,6 +253,41 @@ export const timeTrackingAPI = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "Error al obtener actividades recientes");
+    }
+
+    return response.json();
+  },
+
+  // Get Historical Sessions
+  async getSessions(
+    page: number = 1,
+    limit: number = 10,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    sessions: WorkSession[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      total: number;
+      limit: number;
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+    };
+  }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+
+    const response = await authenticatedFetch(`/time/sessions?${params}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Error al obtener sesiones");
     }
 
     return response.json();
