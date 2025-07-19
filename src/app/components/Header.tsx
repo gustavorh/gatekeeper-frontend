@@ -151,23 +151,15 @@ export default function Header() {
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="font-medium">Base de datos:</span>
-                            <span
-                              className={
-                                systemStatus.database === "connected"
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }
-                            >
-                              {systemStatus.database === "connected"
-                                ? "Conectada"
-                                : "Desconectada"}
+                            <span className="font-medium">Servicio:</span>
+                            <span className="text-blue-400">
+                              {systemStatus.service}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="font-medium">Respuesta:</span>
-                            <span className="text-blue-400">
-                              {systemStatus.responseTime}
+                            <span className="font-medium">Versión:</span>
+                            <span className="text-gray-300">
+                              {systemStatus.version}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -175,15 +167,11 @@ export default function Header() {
                               Última verificación:
                             </span>
                             <span className="text-gray-300">
-                              {lastCheck
-                                ? lastCheck.toLocaleTimeString()
+                              {systemStatus.timestamp
+                                ? new Date(
+                                    systemStatus.timestamp
+                                  ).toLocaleTimeString()
                                 : "N/A"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-medium">Versión:</span>
-                            <span className="text-gray-300">
-                              {systemStatus.version}
                             </span>
                           </div>
                         </>

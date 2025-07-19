@@ -91,12 +91,8 @@ export interface DashboardStats {
 export interface HealthStatus {
   status: "healthy" | "unhealthy";
   timestamp: string;
-  database: "connected" | "disconnected";
-  responseTime: string;
+  service: string;
   version: string;
-  uptime: number;
-  environment: string;
-  error?: string;
 }
 
 export interface TimeTrackingResponse {
