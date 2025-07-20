@@ -122,6 +122,7 @@ export interface WorkSession {
   isOvertimeDay: boolean;
   overtimeMinutes: number;
   isValidSession: boolean;
+  validationErrors?: string[] | null;
 }
 
 /**
