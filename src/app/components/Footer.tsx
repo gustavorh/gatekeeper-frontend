@@ -15,7 +15,7 @@ export default function Footer() {
           <button className="hover:text-gray-700 transition-colors duration-200">
             Soporte
           </button>
-          <span>Versión 0.2.0</span>
+          <span>Versión 1.0.0</span>
           <a
             href="https://github.com/gustavorh"
             target="_blank"
