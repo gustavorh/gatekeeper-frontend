@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { authService } from "../lib/authService";
@@ -17,12 +17,26 @@ interface SidebarSection {
   id: string;
   title: string;
   items: SidebarItem[];
+  collapsible?: boolean;
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.roles?.includes("admin") || false;
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(["main"])
+  );
+
+  const toggleSection = (sectionId: string) => {
+    const newExpandedSections = new Set(expandedSections);
+    if (newExpandedSections.has(sectionId)) {
+      newExpandedSections.delete(sectionId);
+    } else {
+      newExpandedSections.add(sectionId);
+    }
+    setExpandedSections(newExpandedSections);
+  };
 
   // Navegación base para todos los usuarios
   const baseNavigation: SidebarItem[] = [
@@ -57,6 +71,35 @@ export default function Sidebar() {
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+        </svg>
+      ),
+    },
+    {
+      id: "actividades",
+      name: "Actividades Recientes",
+      href: "/actividades",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+          <path
+            fillRule="evenodd"
+            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: "perfil",
+      name: "Mi Perfil",
+      href: "/perfil",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+            clipRule="evenodd"
+          />
         </svg>
       ),
     },
@@ -114,6 +157,34 @@ export default function Sidebar() {
       ),
     },
     {
+      id: "admin-permissions",
+      name: "Gestión de Permisos",
+      href: "/admin/permissions",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: "admin-work-sessions",
+      name: "Gestión de Turnos",
+      href: "/admin/work-sessions",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+    {
       id: "admin-reports",
       name: "Reportes",
       href: "/admin/reports",
@@ -149,6 +220,7 @@ export default function Sidebar() {
       id: "main",
       title: "Navegación",
       items: baseNavigation,
+      collapsible: true,
     },
   ];
 
@@ -158,59 +230,94 @@ export default function Sidebar() {
       id: "admin",
       title: "Administración",
       items: adminNavigation,
+      collapsible: true,
     });
   }
 
   return (
     <div className="w-64 bg-white rounded-xl shadow-lg border border-gray-100 h-fit">
       <div className="p-6">
-        {navigationSections.map((section) => (
-          <div key={section.id} className="mb-6">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              {section.title}
-            </h2>
-            <nav>
-              <ul className="space-y-1">
-                {section.items.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <li key={item.id}>
-                      <Link
-                        href={item.href}
-                        className={`flex items-center space-x-3 rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
-                          isActive
-                            ? "text-white shadow-lg hover:shadow-xl"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
-                        }`}
-                        style={isActive ? { backgroundColor: "#fe938c" } : {}}
-                      >
-                        <div className="w-5 h-5 flex items-center justify-center">
-                          <div
-                            className={`w-5 h-5 ${
-                              isActive ? "" : "group-hover:text-pink-400"
-                            } transition-colors duration-200`}
+        {navigationSections.map((section) => {
+          const isExpanded = expandedSections.has(section.id);
+          const hasActiveItem = section.items.some(
+            (item) => pathname === item.href
+          );
+
+          return (
+            <div key={section.id} className="mb-6">
+              <button
+                onClick={() => section.collapsible && toggleSection(section.id)}
+                className={`w-full flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 transition-colors duration-200 ${
+                  section.collapsible
+                    ? "cursor-pointer hover:text-gray-700"
+                    : ""
+                }`}
+              >
+                <span>{section.title}</span>
+                {section.collapsible && (
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </button>
+
+              {(!section.collapsible || isExpanded) && (
+                <nav>
+                  <ul className="space-y-1">
+                    {section.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <li key={item.id}>
+                          <Link
+                            href={item.href}
+                            className={`flex items-center space-x-3 rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
+                              isActive
+                                ? "text-white shadow-lg hover:shadow-xl"
+                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm"
+                            }`}
+                            style={
+                              isActive ? { backgroundColor: "#fe938c" } : {}
+                            }
                           >
-                            {item.icon}
-                          </div>
-                        </div>
-                        <span
-                          className={`${
-                            isActive ? "" : "group-hover:text-pink-400"
-                          } transition-colors duration-200`}
-                        >
-                          {item.name}
-                        </span>
-                        {isActive && (
-                          <div className="ml-auto w-2 h-2 bg-white bg-opacity-40 rounded-full"></div>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
-        ))}
+                            <div className="w-5 h-5 flex items-center justify-center">
+                              <div
+                                className={`w-5 h-5 ${
+                                  isActive ? "" : "group-hover:text-pink-400"
+                                } transition-colors duration-200`}
+                              >
+                                {item.icon}
+                              </div>
+                            </div>
+                            <span
+                              className={`${
+                                isActive ? "" : "group-hover:text-pink-400"
+                              } transition-colors duration-200`}
+                            >
+                              {item.name}
+                            </span>
+                            {isActive && (
+                              <div className="ml-auto w-2 h-2 bg-white bg-opacity-40 rounded-full"></div>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </nav>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
