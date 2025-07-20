@@ -257,3 +257,114 @@ export interface ApiHookResult<T> extends ApiState<T> {
   execute: () => Promise<void>;
   reset: () => void;
 }
+
+// ===================================
+// TIPOS PARA ADMINISTRACIÓN DE USUARIOS
+// ===================================
+
+/**
+ * Detalle de rol asignado a un usuario
+ */
+export interface UserRoleDetail {
+  roleId: number;
+  roleName: string;
+  roleDescription?: string | null;
+  assignedAt: Date;
+}
+
+/**
+ * Usuario con roles incluidos
+ */
+export interface UserWithRoles extends Omit<User, "roles"> {
+  roles: UserRoleDetail[];
+}
+
+/**
+ * Respuesta de lista de usuarios
+ */
+export interface UsersListData {
+  users: UserWithRoles[];
+  total: number;
+}
+
+/**
+ * Respuesta de roles de usuario
+ */
+export interface UserRolesData {
+  userId: number;
+  roles: UserRolePermission[];
+}
+
+/**
+ * Rol con permisos incluidos
+ */
+export interface UserRolePermission {
+  roleId: number;
+  roleName: string;
+  roleDescription?: string | null;
+  permissions: string[];
+  assignedAt: Date;
+  isActive: boolean;
+}
+
+/**
+ * Rol del sistema
+ */
+export interface SystemRole {
+  id: number;
+  name: string;
+  description: string;
+  permissions: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Respuesta de roles del sistema
+ */
+export interface RolesListResponseData {
+  roles: SystemRole[];
+  total: number;
+}
+
+/**
+ * Solicitud para asignar rol
+ */
+export interface AssignRoleRequest {
+  roleId: number;
+}
+
+/**
+ * Respuesta de asignación de rol
+ */
+export interface AssignRoleResponseData {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Solicitud para remover rol
+ */
+export interface RemoveRoleRequest {
+  roleId: number;
+}
+
+/**
+ * Respuesta de remoción de rol
+ */
+export interface RemoveRoleResponseData {
+  success: boolean;
+  message: string;
+}
+
+// ===================================
+// TIPOS DE RESPUESTA PARA ADMINISTRACIÓN
+// ===================================
+
+// Respuestas de administración de usuarios
+export type UsersListResponse = ApiResponse<UserWithRoles[]>;
+export type UserRolesResponse = ApiResponse<UserRolesData>;
+export type AssignRoleResponse = ApiResponse<AssignRoleResponseData>;
+export type RemoveRoleResponse = ApiResponse<RemoveRoleResponseData>;
+export type RolesListResponse = ApiResponse<RolesListResponseData>;
