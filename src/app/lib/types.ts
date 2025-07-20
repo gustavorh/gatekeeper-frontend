@@ -55,13 +55,13 @@ export interface ApiResponse<T = any> {
  * Usuario autenticado
  */
 export interface User {
-  id: string;
+  id: number;
   rut: string;
   nombre?: string;
   apellido_paterno?: string;
   apellido_materno?: string;
   email?: string;
-  createdAt?: string;
+  createdAt?: Date;
   roles?: string[];
   permissions?: string[];
 }
