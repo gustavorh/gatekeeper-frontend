@@ -11,10 +11,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { showError } = useNotification();
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { showError, showSuccess } = useNotification();
   const router = useRouter();
 
   // RUT formatting functions
@@ -70,16 +70,19 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsLoggingIn(true);
 
-    // Send clean RUT to backend (without dots and hyphens)
-    const cleanedRut = cleanRut(rut.trim());
-    const success = await login(cleanedRut, password, rememberMe);
-    if (success) {
-      router.push("/dashboard");
+    try {
+      // Send clean RUT to backend (without dots and hyphens)
+      const cleanedRut = cleanRut(rut.trim());
+      const success = await login(cleanedRut, password.trim(), rememberMe);
+
+      if (success) {
+        router.push("/dashboard");
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    setIsLoading(false);
   };
 
   if (authLoading) {
@@ -153,7 +156,7 @@ export default function LoginPage() {
               placeholder="12345678-9"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors text-gray-900 placeholder-gray-500"
               autoFocus
-              disabled={isLoading}
+              disabled={isLoggingIn}
             />
           </div>
 
@@ -173,13 +176,13 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Ingresa tu contraseña"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors pr-12 text-gray-900 placeholder-gray-500"
-                disabled={isLoading}
+                disabled={isLoggingIn}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                disabled={isLoading}
+                disabled={isLoggingIn}
               >
                 {showPassword ? (
                   <svg
@@ -229,7 +232,7 @@ export default function LoginPage() {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                disabled={isLoading}
+                disabled={isLoggingIn}
               />
               <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
                 Recordarme
@@ -238,7 +241,7 @@ export default function LoginPage() {
             <button
               type="button"
               className="text-sm text-blue-600 hover:text-blue-800"
-              disabled={isLoading}
+              disabled={isLoggingIn}
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -247,10 +250,10 @@ export default function LoginPage() {
           {/* Login Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoggingIn}
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            {isLoggingIn ? "Iniciando sesión..." : "Iniciar Sesión"}
           </button>
 
           {/* Contact Support */}
@@ -259,7 +262,7 @@ export default function LoginPage() {
             <button
               type="button"
               className="text-blue-600 hover:text-blue-800"
-              disabled={isLoading}
+              disabled={isLoggingIn}
             >
               Contactar Soporte
             </button>

@@ -7,12 +7,13 @@ import { useSystemHealth } from "../hooks/useSystemHealth";
 export default function Header() {
   const { user, logout } = useAuth();
   const {
-    isHealthy,
-    status: systemStatus,
-    lastCheck,
-    isChecking,
+    data: systemStatus,
+    loading: isChecking,
     error: healthError,
-  } = useSystemHealth(30000);
+  } = useSystemHealth(60000, true);
+
+  const isHealthy = systemStatus?.status === "healthy";
+  const lastCheck = systemStatus ? new Date(systemStatus.timestamp) : null;
 
   const [showHealthTooltip, setShowHealthTooltip] = useState(false);
 

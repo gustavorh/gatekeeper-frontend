@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../contexts/NotificationContext";
 import ProtectedRoute from "../components/ProtectedRoute";
@@ -8,15 +7,13 @@ import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import {
-  timeTrackingAPI,
-  statisticsAPI,
+  useDashboardData,
+  useTimeOperations,
   formatUtils,
-  type CurrentStatus,
-  type TodaySession,
-  type DashboardStats,
-  type TimeEntry,
-  type ButtonStates,
-} from "../lib/api";
+} from "../lib/timeTrackingService";
+import { useDashboardStats } from "../lib/statisticsService";
+import { TimeEntry } from "../lib/types";
+import { handleApiError } from "../lib/index";
 
 interface Activity {
   id: string;
@@ -25,124 +22,89 @@ interface Activity {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { showSuccess, showInfo, showError } = useNotification();
 
-  // Estados del dashboard
-  const [currentStatus, setCurrentStatus] = useState<
-    "clocked_out" | "clocked_in" | "on_lunch"
-  >("clocked_out");
-  const [buttonStates, setButtonStates] = useState<ButtonStates>({
-    clockIn: { enabled: false },
-    clockOut: { enabled: false },
-    startLunch: { enabled: false },
-    resumeShift: { enabled: false },
-  });
-  const [todaySession, setTodaySession] = useState<TodaySession | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
-    null
-  );
-  const [activities, setActivities] = useState<TimeEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Usar los nuevos hooks
+  const dashboardData = useDashboardData(true); // Auto-refresh enabled
+  const timeOperations = useTimeOperations();
+  const dashboardStats = useDashboardStats(true);
 
-  // Cargar datos del dashboard
-  const loadDashboardData = async () => {
+  // Extraer datos de los hooks
+  const {
+    currentStatus,
+    todaySession,
+    recentActivities,
+    loading: dashboardLoading,
+    error: dashboardError,
+    refreshAll,
+  } = dashboardData;
+
+  const {
+    loading: operationsLoading,
+    error: operationsError,
+    clockIn: handleClockIn,
+    clockOut: handleClockOut,
+    startLunch: handleStartLunch,
+    resumeShift: handleResumeShift,
+  } = timeOperations;
+
+  // Estado de loading combinado
+  const loading = dashboardLoading || operationsLoading;
+
+  // Manejo de errores unificado
+  const error = dashboardError || operationsError;
+
+  // Wrappers para manejar mensajes y refresh
+  const wrappedClockIn = async () => {
     try {
-      setLoading(true);
-
-      // Cargar datos en paralelo
-      const [statusData, todayData, statsData, activitiesData] =
-        await Promise.all([
-          timeTrackingAPI.getCurrentStatus(),
-          timeTrackingAPI.getTodaySession(),
-          statisticsAPI.getDashboardStats(),
-          timeTrackingAPI.getRecentActivities(5),
-        ]);
-
-      setCurrentStatus(statusData.status);
-      setButtonStates(statusData.buttonStates);
-      setTodaySession(todayData);
-      setDashboardStats(statsData);
-      setActivities(activitiesData.activities);
-    } catch (error) {
-      console.error("Error cargando datos del dashboard:", error);
-      showError("Error al cargar los datos del dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Cargar datos al montar el componente
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  // Manejar acciones del reloj
-  const handleClockIn = async () => {
-    try {
-      const result = await timeTrackingAPI.clockIn();
-      setCurrentStatus("clocked_in");
-      setButtonStates(result.buttonStates || buttonStates);
-      showSuccess(result.message);
-
-      // Recargar datos
-      await loadDashboardData();
-    } catch (error) {
+      const result = await handleClockIn();
+      showSuccess("Entrada registrada exitosamente");
+      await refreshAll();
+    } catch (error: any) {
       console.error("Error en clock-in:", error);
-      showError(
-        error instanceof Error ? error.message : "Error al registrar entrada"
-      );
+      // Usar el mensaje de error exacto del backend
+      const errorMessage = handleApiError(error, "Error al registrar entrada");
+      showError(errorMessage);
     }
   };
 
-  const handleClockOut = async () => {
+  const wrappedClockOut = async () => {
     try {
-      const result = await timeTrackingAPI.clockOut();
-      setCurrentStatus("clocked_out");
-      setButtonStates(result.buttonStates || buttonStates);
-      showSuccess(result.message);
-
-      // Recargar datos
-      await loadDashboardData();
-    } catch (error) {
+      const result = await handleClockOut();
+      showSuccess("Salida registrada exitosamente");
+      await refreshAll();
+    } catch (error: any) {
       console.error("Error en clock-out:", error);
-      showError(
-        error instanceof Error ? error.message : "Error al registrar salida"
-      );
+      // Usar el mensaje de error exacto del backend
+      const errorMessage = handleApiError(error, "Error al registrar salida");
+      showError(errorMessage);
     }
   };
 
-  const handleStartLunch = async () => {
+  const wrappedStartLunch = async () => {
     try {
-      const result = await timeTrackingAPI.startLunch();
-      setCurrentStatus("on_lunch");
-      setButtonStates(result.buttonStates || buttonStates);
-      showInfo(result.message);
-
-      // Recargar datos
-      await loadDashboardData();
-    } catch (error) {
+      const result = await handleStartLunch();
+      showInfo("Almuerzo iniciado");
+      await refreshAll();
+    } catch (error: any) {
       console.error("Error en start-lunch:", error);
-      showError(
-        error instanceof Error ? error.message : "Error al iniciar almuerzo"
-      );
+      // Usar el mensaje de error exacto del backend
+      const errorMessage = handleApiError(error, "Error al iniciar almuerzo");
+      showError(errorMessage);
     }
   };
 
-  const handleResumeShift = async () => {
+  const wrappedResumeShift = async () => {
     try {
-      const result = await timeTrackingAPI.resumeShift();
-      setCurrentStatus("clocked_in");
-      setButtonStates(result.buttonStates || buttonStates);
-      showSuccess(result.message);
-
-      // Recargar datos
-      await loadDashboardData();
-    } catch (error) {
+      const result = await handleResumeShift();
+      showSuccess("Turno reanudado");
+      await refreshAll();
+    } catch (error: any) {
       console.error("Error en resume-shift:", error);
-      showError(
-        error instanceof Error ? error.message : "Error al reanudar turno"
-      );
+      // Usar el mensaje de error exacto del backend
+      const errorMessage = handleApiError(error, "Error al reanudar turno");
+      showError(errorMessage);
     }
   };
 
@@ -191,11 +153,13 @@ export default function Dashboard() {
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <button
-                        onClick={handleClockIn}
-                        disabled={!buttonStates.clockIn.enabled}
-                        title={buttonStates.clockIn.reason}
+                        onClick={wrappedClockIn}
+                        disabled={
+                          !currentStatus?.buttonStates?.clockIn?.enabled
+                        }
+                        title={currentStatus?.buttonStates?.clockIn?.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          buttonStates.clockIn.enabled
+                          currentStatus?.buttonStates?.clockIn?.enabled
                             ? "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -222,11 +186,13 @@ export default function Dashboard() {
                       </button>
 
                       <button
-                        onClick={handleClockOut}
-                        disabled={!buttonStates.clockOut.enabled}
-                        title={buttonStates.clockOut.reason}
+                        onClick={wrappedClockOut}
+                        disabled={
+                          !currentStatus?.buttonStates?.clockOut?.enabled
+                        }
+                        title={currentStatus?.buttonStates?.clockOut?.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          buttonStates.clockOut.enabled
+                          currentStatus?.buttonStates?.clockOut?.enabled
                             ? "border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -253,11 +219,13 @@ export default function Dashboard() {
                       </button>
 
                       <button
-                        onClick={handleStartLunch}
-                        disabled={!buttonStates.startLunch.enabled}
-                        title={buttonStates.startLunch.reason}
+                        onClick={wrappedStartLunch}
+                        disabled={
+                          !currentStatus?.buttonStates?.startLunch?.enabled
+                        }
+                        title={currentStatus?.buttonStates?.startLunch?.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          buttonStates.startLunch.enabled
+                          currentStatus?.buttonStates?.startLunch?.enabled
                             ? "border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 text-orange-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -288,11 +256,13 @@ export default function Dashboard() {
                       </button>
 
                       <button
-                        onClick={handleResumeShift}
-                        disabled={!buttonStates.resumeShift.enabled}
-                        title={buttonStates.resumeShift.reason}
+                        onClick={wrappedResumeShift}
+                        disabled={
+                          !currentStatus?.buttonStates?.resumeShift?.enabled
+                        }
+                        title={currentStatus?.buttonStates?.resumeShift?.reason}
                         className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-                          buttonStates.resumeShift.enabled
+                          currentStatus?.buttonStates?.resumeShift?.enabled
                             ? "border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 text-green-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                             : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
@@ -343,25 +313,25 @@ export default function Dashboard() {
                           <div className="flex items-center">
                             <div
                               className={`w-4 h-4 rounded-full mr-3 shadow-sm ${
-                                currentStatus === "clocked_in"
+                                currentStatus?.status === "clocked_in"
                                   ? "bg-green-500 animate-pulse"
-                                  : currentStatus === "on_lunch"
+                                  : currentStatus?.status === "on_lunch"
                                   ? "bg-yellow-500 animate-pulse"
                                   : "bg-gray-400"
                               }`}
                             ></div>
                             <div>
                               <span className="text-gray-900 font-medium">
-                                {currentStatus === "clocked_in"
+                                {currentStatus?.status === "clocked_in"
                                   ? "Entrada registrada a las"
-                                  : currentStatus === "on_lunch"
+                                  : currentStatus?.status === "on_lunch"
                                   ? "En almuerzo desde las"
                                   : "Sin entrada registrada"}
                               </span>
                               <div className="text-xs text-gray-500 mt-1">
-                                {currentStatus === "clocked_in"
+                                {currentStatus?.status === "clocked_in"
                                   ? "Sesión de trabajo activa"
-                                  : currentStatus === "on_lunch"
+                                  : currentStatus?.status === "on_lunch"
                                   ? "Descanso en progreso"
                                   : "Listo para comenzar"}
                               </div>
@@ -391,7 +361,7 @@ export default function Dashboard() {
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
                               {todaySession?.session?.clockInTime &&
-                              currentStatus !== "clocked_out"
+                              currentStatus?.status !== "clocked_out"
                                 ? "Sesión en curso"
                                 : "Sin sesión activa"}
                             </div>
@@ -402,7 +372,7 @@ export default function Dashboard() {
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
                               {todaySession?.session?.clockInTime &&
-                              currentStatus !== "clocked_out"
+                              currentStatus?.status !== "clocked_out"
                                 ? "hrs (en curso)"
                                 : "hrs"}
                             </div>
@@ -438,7 +408,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-blue-600">
-                              {dashboardStats?.weekStats?.totalHours?.toFixed(
+                              {dashboardStats.data?.weekStats?.totalHours?.toFixed(
                                 1
                               ) || "0.0"}
                             </span>
@@ -458,7 +428,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-gray-900">
-                              {dashboardStats?.monthStats?.totalDays || 0}
+                              {dashboardStats.data?.monthStats?.totalDays || 0}
                             </span>
                             <div className="text-xs text-gray-500">días</div>
                           </div>
@@ -476,7 +446,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-green-600">
-                              {dashboardStats?.averageEntryTime || "--:--"}
+                              {dashboardStats.data?.averageEntryTime || "--:--"}
                             </span>
                             <div className="text-xs text-gray-500">AM</div>
                           </div>
@@ -497,8 +467,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      {activities.length > 0 ? (
-                        activities.map((activity) => (
+                      {recentActivities.length > 0 ? (
+                        recentActivities.map((activity: TimeEntry) => (
                           <div
                             key={activity.id}
                             className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200"

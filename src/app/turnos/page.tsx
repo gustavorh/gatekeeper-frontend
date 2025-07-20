@@ -1,67 +1,66 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useNotification } from "../contexts/NotificationContext";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
-import { timeTrackingAPI, formatUtils, type WorkSession } from "../lib/api";
+import { useNotification } from "../contexts/NotificationContext";
+import { useSessions } from "../lib/timeTrackingService";
+import { formatUtils } from "../lib/timeTrackingService";
+import { WorkSession } from "../lib/types";
+import { handleApiError } from "../lib/index";
 
-interface SessionsData {
-  sessions: WorkSession[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    total: number;
-    limit: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+interface SessionFilters {
+  startDate?: string;
+  endDate?: string;
 }
 
 export default function TurnosPage() {
   const { showError } = useNotification();
-  const [sessionsData, setSessionsData] = useState<SessionsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const loadSessions = async (page: number = 1) => {
-    try {
-      setLoading(true);
-      const data = await timeTrackingAPI.getSessions(
-        page,
-        10,
-        startDate || undefined,
-        endDate || undefined
-      );
-      setSessionsData(data);
-      setCurrentPage(page);
-    } catch (error) {
-      console.error("Error cargando sesiones:", error);
-      showError("Error al cargar las sesiones");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Usar el hook de sessions con filtros
+  const sessionsHook = useSessions(10, {
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  });
+
+  const {
+    data: sessions,
+    loading,
+    error,
+    currentPage,
+    totalPages,
+    hasNextPage,
+    hasPreviousPage,
+    goToPage,
+    nextPage,
+    previousPage,
+    refresh,
+  } = sessionsHook;
 
   const handleFilterChange = () => {
-    setCurrentPage(1);
-    loadSessions(1);
+    refresh(); // Refresca con los nuevos filtros
   };
 
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
-    setCurrentPage(1);
-    loadSessions(1);
+    // El hook se refrescará automáticamente cuando cambien los filtros
   };
 
+  // Mostrar error del backend si hay alguno
   useEffect(() => {
-    loadSessions(1);
-  }, []);
+    if (error) {
+      const errorMessage = handleApiError(
+        { message: error },
+        "Error al cargar las sesiones"
+      );
+      showError(errorMessage);
+    }
+  }, [error, showError]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -118,12 +117,11 @@ export default function TurnosPage() {
   };
 
   const PaginationControls = () => {
-    if (!sessionsData) return null;
+    if (!sessions) return null;
 
-    const { pagination } = sessionsData;
     const pageNumbers = [];
-    const startPage = Math.max(1, pagination.currentPage - 2);
-    const endPage = Math.min(pagination.totalPages, pagination.currentPage + 2);
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
 
     for (let i = startPage; i <= endPage; i++) {
       pageNumbers.push(i);
@@ -133,15 +131,15 @@ export default function TurnosPage() {
       <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
         <div className="flex justify-between sm:hidden">
           <button
-            onClick={() => loadSessions(pagination.currentPage - 1)}
-            disabled={!pagination.hasPreviousPage}
+            onClick={() => previousPage()}
+            disabled={!hasPreviousPage}
             className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Anterior
           </button>
           <button
-            onClick={() => loadSessions(pagination.currentPage + 1)}
-            disabled={!pagination.hasNextPage}
+            onClick={() => nextPage()}
+            disabled={!hasNextPage}
             className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Siguiente
@@ -151,25 +149,20 @@ export default function TurnosPage() {
           <div>
             <p className="text-sm text-gray-700">
               Mostrando{" "}
-              <span className="font-medium">
-                {(pagination.currentPage - 1) * pagination.limit + 1}
-              </span>{" "}
+              <span className="font-medium">{(currentPage - 1) * 10 + 1}</span>{" "}
               a{" "}
               <span className="font-medium">
-                {Math.min(
-                  pagination.currentPage * pagination.limit,
-                  pagination.total
-                )}
+                {Math.min(currentPage * 10, sessions?.length || 0)}
               </span>{" "}
-              de <span className="font-medium">{pagination.total}</span>{" "}
+              de <span className="font-medium">{sessions?.length || 0}</span>{" "}
               resultados
             </p>
           </div>
           <div>
             <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
               <button
-                onClick={() => loadSessions(pagination.currentPage - 1)}
-                disabled={!pagination.hasPreviousPage}
+                onClick={() => previousPage()}
+                disabled={!hasPreviousPage}
                 className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="sr-only">Anterior</span>
@@ -189,9 +182,9 @@ export default function TurnosPage() {
               {pageNumbers.map((pageNum) => (
                 <button
                   key={pageNum}
-                  onClick={() => loadSessions(pageNum)}
+                  onClick={() => goToPage(pageNum)}
                   className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                    pageNum === pagination.currentPage
+                    pageNum === currentPage
                       ? "z-10 bg-pink-50 border-pink-500 text-pink-600"
                       : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                   }`}
@@ -200,8 +193,8 @@ export default function TurnosPage() {
                 </button>
               ))}
               <button
-                onClick={() => loadSessions(pagination.currentPage + 1)}
-                disabled={!pagination.hasNextPage}
+                onClick={() => nextPage()}
+                disabled={!hasNextPage}
                 className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="sr-only">Siguiente</span>
@@ -251,7 +244,7 @@ export default function TurnosPage() {
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <span className="text-sm text-gray-500">
-                        {sessionsData?.pagination.total || 0} sesiones
+                        {sessions?.length || 0} sesiones
                       </span>
                     </div>
                   </div>
@@ -306,7 +299,7 @@ export default function TurnosPage() {
                         Cargando sesiones...
                       </span>
                     </div>
-                  ) : sessionsData?.sessions.length === 0 ? (
+                  ) : sessions && sessions.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg
@@ -373,7 +366,7 @@ export default function TurnosPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {sessionsData?.sessions.map((session) => (
+                        {sessions?.map((session: WorkSession) => (
                           <tr
                             key={session.id}
                             className="hover:bg-gray-50 transition-colors"
@@ -448,9 +441,7 @@ export default function TurnosPage() {
                 </div>
 
                 {/* Pagination */}
-                {sessionsData && sessionsData.sessions.length > 0 && (
-                  <PaginationControls />
-                )}
+                {sessions && sessions.length > 0 && <PaginationControls />}
               </div>
             </div>
           </div>
