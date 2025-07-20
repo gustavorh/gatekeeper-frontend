@@ -97,31 +97,6 @@ export default function TurnosPage() {
     }
   };
 
-  const getValidationBadge = (session: WorkSession) => {
-    if (session.isValidSession) {
-      return (
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 cursor-default"
-          title="Turno válido - Cumple con todas las normas laborales"
-        >
-          ✅
-        </span>
-      );
-    } else {
-      const errors = session.validationErrors || ["Turno inválido"];
-      const errorMessage = errors.join(", ");
-
-      return (
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 cursor-help"
-          title={`⚠️ TURNO INVÁLIDO: ${errorMessage}`}
-        >
-          ⚠️
-        </span>
-      );
-    }
-  };
-
   const formatDateTime = (dateTime: string | null | undefined) => {
     if (!dateTime) return "N/A";
     return new Date(dateTime).toLocaleString("es-CL", {
@@ -388,12 +363,6 @@ export default function TurnosPage() {
                           >
                             Estado
                           </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Validación
-                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -455,40 +424,13 @@ export default function TurnosPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {getStatusBadge(session.status)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex flex-col items-start">
-                                {getValidationBadge(session)}
-                                {!session.isValidSession &&
-                                  session.validationErrors && (
-                                    <div className="mt-1 text-xs text-red-600 max-w-xs">
-                                      <div className="font-medium">
-                                        Problemas:
-                                      </div>
-                                      <ul className="list-disc list-inside">
-                                        {session.validationErrors
-                                          .slice(0, 2)
-                                          .map((error, index) => (
-                                            <li
-                                              key={index}
-                                              className="truncate"
-                                            >
-                                              {error}
-                                            </li>
-                                          ))}
-                                        {session.validationErrors.length >
-                                          2 && (
-                                          <li className="text-gray-500">
-                                            +
-                                            {session.validationErrors.length -
-                                              2}{" "}
-                                            más
-                                          </li>
-                                        )}
-                                      </ul>
-                                    </div>
-                                  )}
+                              <div className="flex items-center space-x-2">
+                                {getStatusBadge(session.status)}
+                                {!session.isValidSession && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    ⚠️
+                                  </span>
+                                )}
                               </div>
                             </td>
                           </tr>
