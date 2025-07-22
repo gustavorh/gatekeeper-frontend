@@ -1,50 +1,140 @@
 // Core application types
 export interface User {
   id: string;
+  rut: string;
   email: string;
-  name: string;
-  role: string;
-  permissions: string[];
-  clientId?: string;
+  firstName: string;
+  lastName: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  resource: string;
+  action: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  permissions: Permission[];
+}
+
+export interface UserWithRoles extends User {
+  roles: Role[];
+}
+
 export interface AuthResponse {
-  user: User;
+  user: UserWithRoles;
   token: string;
-  refreshToken: string;
-  expiresIn: number;
 }
 
 export interface LoginCredentials {
-  email: string;
+  rut: string;
   password: string;
 }
 
 export interface RegisterData {
+  rut: string;
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
+}
+
+// Input DTOs (for sending data to backend)
+export interface CreateUserData {
+  rut: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface UpdateUserData {
+  rut?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
+}
+
+export interface CreateRoleData {
   name: string;
-  clientId?: string;
+  description: string;
+}
+
+export interface UpdateRoleData {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface CreatePermissionData {
+  name: string;
+  description: string;
+  resource: string;
+  action: string;
+}
+
+export interface UpdatePermissionData {
+  name?: string;
+  description?: string;
+  resource?: string;
+  action?: string;
+  isActive?: boolean;
 }
 
 export interface ApiResponse<T = any> {
   success: boolean;
+  message: string;
   data?: T;
-  message?: string;
-  errors?: Record<string, string[]>;
+  error?: string;
+  timestamp: string;
+  path?: string;
+  endpoint?: string;
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface PaginatedData<T> {
+  items: T[];
+  pagination: PaginationInfo;
 }
 
 export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  success: boolean;
+  message: string;
+  data: PaginatedData<T>;
+  timestamp: string;
+  path?: string;
+}
+
+export interface ErrorResponse {
+  success: false;
+  message: string;
+  error: string;
+  timestamp: string;
+  path?: string;
+  details?: any;
 }
 
 // Client/Organization types
@@ -88,4 +178,4 @@ export interface FormState<T> {
   errors: ValidationError[];
   isValid: boolean;
   isSubmitting: boolean;
-} 
+}
