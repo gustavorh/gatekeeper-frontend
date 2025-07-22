@@ -69,7 +69,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Store tokens
         localStorage.setItem("accessToken", authData.token);
-        localStorage.setItem("refreshToken", authData.refreshToken);
+        // Note: refreshToken might not be available in all responses
+        if (authData.refreshToken) {
+          localStorage.setItem("refreshToken", authData.refreshToken);
+        }
 
         // Set user
         setUser(authData.user);
@@ -94,7 +97,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Store tokens
         localStorage.setItem("accessToken", authData.token);
-        localStorage.setItem("refreshToken", authData.refreshToken);
+        // Note: refreshToken might not be available in all responses
+        if (authData.refreshToken) {
+          localStorage.setItem("refreshToken", authData.refreshToken);
+        }
 
         // Set user
         setUser(authData.user);
@@ -136,7 +142,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Update tokens
         localStorage.setItem("accessToken", authData.token);
-        localStorage.setItem("refreshToken", authData.refreshToken);
+        // Note: refreshToken might not be available in all responses
+        if (authData.refreshToken) {
+          localStorage.setItem("refreshToken", authData.refreshToken);
+        }
 
         // Update user
         setUser(authData.user);

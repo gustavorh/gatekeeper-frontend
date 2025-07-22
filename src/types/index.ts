@@ -5,6 +5,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  name: string; // Computed field: firstName + lastName
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +39,7 @@ export interface UserWithRoles extends User {
 export interface AuthResponse {
   user: UserWithRoles;
   token: string;
+  refreshToken?: string;
 }
 
 export interface LoginCredentials {
@@ -96,7 +98,7 @@ export interface UpdatePermissionData {
   isActive?: boolean;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -134,7 +136,7 @@ export interface ErrorResponse {
   error: string;
   timestamp: string;
   path?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 // Client/Organization types
@@ -165,6 +167,7 @@ export interface ApiError {
   message: string;
   status: number;
   code?: string;
+  details?: Record<string, unknown>;
 }
 
 // Form validation types

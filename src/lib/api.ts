@@ -49,21 +49,30 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async login(credentials: { email: string; password: string }) {
+  async login(credentials: { rut: string; password: string }) {
     return this.request("/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
     });
   }
 
-  async register(userData: { email: string; password: string; name: string }) {
+  async register(userData: {
+    rut: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) {
     return this.request("/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshToken(refreshToken?: string) {
+    if (!refreshToken) {
+      throw new Error("No refresh token provided");
+    }
     return this.request("/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refreshToken }),
@@ -93,14 +102,20 @@ class ApiClient {
     return this.request<T>(endpoint);
   }
 
-  async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+  async post<T>(
+    endpoint: string,
+    data: Record<string, unknown>
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+  async put<T>(
+    endpoint: string,
+    data: Record<string, unknown>
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -118,7 +133,7 @@ class ApiClient {
 export const apiClient = new ApiClient(API_BASE_URL);
 
 // Utility function to handle API errors
-export const handleApiError = (error: any): ApiError => {
+export const handleApiError = (error: unknown): ApiError => {
   if (error instanceof Error) {
     return {
       message: error.message,

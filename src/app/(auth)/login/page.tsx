@@ -2,9 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotification } from "@/contexts/NotificationContext";
 import { LoginCredentials } from "@/types";
@@ -12,7 +9,7 @@ import { LoginCredentials } from "@/types";
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading } = useAuth();
-  const { addNotification } = useNotification();
+  const { showSuccess, showError } = useNotification();
 
   const [formData, setFormData] = useState<LoginCredentials>({
     rut: "",
@@ -69,21 +66,14 @@ export default function LoginPage() {
 
     try {
       await login(formData);
-      addNotification({
-        type: "success",
-        title: "Welcome back!",
-        message: "You have successfully logged in.",
-      });
+      showSuccess("¡Bienvenido de vuelta! Has iniciado sesión exitosamente.");
       router.push("/dashboard");
     } catch (error) {
-      addNotification({
-        type: "error",
-        title: "Login failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "An error occurred during login.",
-      });
+      showError(
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error durante el inicio de sesión."
+      );
     }
   };
 
