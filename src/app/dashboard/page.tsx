@@ -1,31 +1,202 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotification } from "@/contexts/NotificationContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import { apiClient } from "@/lib/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { showSuccess, showError } = useNotification();
   const [clockInLoading, setClockInLoading] = useState(false);
   const [clockOutLoading, setClockOutLoading] = useState(false);
   const [clockInError, setClockInError] = useState<string | null>(null);
   const [clockOutError, setClockOutError] = useState<string | null>(null);
+
+  // Button states
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [isOnLunch, setIsOnLunch] = useState(false);
+  const [currentShift, setCurrentShift] = useState<any>(null);
+  const [loadingShift, setLoadingShift] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+
+  // Fetch current shift status on component mount
+  useEffect(() => {
+    const fetchCurrentShift = async () => {
+      try {
+        setLoadingShift(true);
+        const response = await apiClient.get("/shifts/current");
+        const shiftData = response.data;
+
+        if (
+          shiftData &&
+          typeof shiftData === "object" &&
+          "status" in shiftData
+        ) {
+          setCurrentShift(shiftData);
+          setIsClockedIn(
+            shiftData.status === "active" || shiftData.status === "on_lunch"
+          );
+          setIsOnLunch(shiftData.status === "on_lunch");
+        } else {
+          // No active shift found
+          setIsClockedIn(false);
+          setIsOnLunch(false);
+          setCurrentShift(null);
+        }
+      } catch (error) {
+        console.error("Error fetching current shift:", error);
+        // Default to not clocked in if there's an error
+        setIsClockedIn(false);
+        setIsOnLunch(false);
+        setCurrentShift(null);
+      } finally {
+        setLoadingShift(false);
+      }
+    };
+
+    const fetchRecentActivities = async () => {
+      try {
+        setLoadingActivities(true);
+        const response = await apiClient.get("/shifts/history");
+        console.log("Full API response:", response.data);
+        const responseData = response.data as any;
+        const shifts = responseData?.shifts || [];
+        console.log("Extracted shifts:", shifts);
+        console.log("Shifts array length:", shifts.length);
+
+        if (Array.isArray(shifts) && shifts.length > 0) {
+          console.log("Fetched shifts:", shifts);
+          // Sort by createdAt in descending order (most recent first)
+          const sortedShifts = shifts.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          // Get only the latest shift
+          const latestShift = sortedShifts[0];
+          console.log("Latest shift to display:", latestShift);
+          setRecentActivities([latestShift]);
+        } else {
+          console.log(
+            "No shifts found or shifts is not an array:",
+            typeof shifts
+          );
+          setRecentActivities([]);
+        }
+      } catch (error) {
+        console.error("Error fetching recent activities:", error);
+        setRecentActivities([]);
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+
+    fetchCurrentShift();
+    fetchRecentActivities();
+  }, []);
+
+  // Helper function to get shift display information
+  const getShiftDisplayInfo = (shift: any) => {
+    const status = shift.status;
+    const clockInTime = shift.clockInTime;
+    const clockOutTime = shift.clockOutTime;
+    const createdAt = shift.createdAt;
+
+    let statusText = "";
+    let statusColor = "";
+    let icon = "";
+    let timeToShow = "";
+
+    if (status === "active" || status === "on_lunch") {
+      statusText = status === "active" ? "Turno Activo" : "En Almuerzo";
+      statusColor = status === "active" ? "bg-green-100" : "bg-orange-100";
+      icon = status === "active" ? "🟢" : "🍽️";
+      timeToShow = clockInTime || createdAt;
+    } else if (status === "completed") {
+      statusText = "Turno Completado";
+      statusColor = "bg-gray-100";
+      icon = "✅";
+      timeToShow = clockOutTime || createdAt;
+    } else {
+      // Default case for any other status
+      statusText = `Turno ${status || "Desconocido"}`;
+      statusColor = "bg-blue-100";
+      icon = "📝";
+      timeToShow = createdAt;
+    }
+
+    return {
+      statusText,
+      statusColor,
+      icon,
+      time: timeToShow,
+      clockInTime: clockInTime,
+      clockOutTime: clockOutTime,
+      createdAt: createdAt,
+    };
+  };
+
+  const formatTime = (timestamp: string) => {
+    if (!timestamp) return "--:--";
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDate = (timestamp: string) => {
+    if (!timestamp) return "--/--/----";
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const refreshActivities = async () => {
+    try {
+      const response = await apiClient.get("/shifts/history");
+      const responseData = response.data as any;
+      const shifts = responseData?.shifts || [];
+      if (Array.isArray(shifts) && shifts.length > 0) {
+        // Sort by createdAt in descending order (most recent first)
+        const sortedShifts = shifts.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        // Get only the latest shift
+        const latestShift = sortedShifts[0];
+        setRecentActivities([latestShift]);
+      } else {
+        setRecentActivities([]);
+      }
+    } catch (error) {
+      console.error("Error refreshing activities:", error);
+    }
+  };
 
   const handleClockIn = async () => {
     setClockInLoading(true);
     setClockInError(null);
 
     try {
-      await apiClient.post("/shifts/clock-in", {});
-      // You could add a success notification here
+      const response = await apiClient.post("/shifts/clock-in", {});
+      setIsClockedIn(true);
+      setCurrentShift(response.data);
+      showSuccess("Entrada registrada exitosamente");
+      await refreshActivities(); // Refresh activities after successful clock in
     } catch (error) {
       setClockInError(
         error instanceof Error ? error.message : "Error al registrar entrada"
       );
+      showError("Error al registrar entrada");
     } finally {
       setClockInLoading(false);
     }
@@ -36,14 +207,99 @@ export default function DashboardPage() {
     setClockOutError(null);
 
     try {
-      await apiClient.post("/shifts/clock-out", {});
-      // You could add a success notification here
+      const response = await apiClient.post("/shifts/clock-out", {});
+      setIsClockedIn(false);
+      setIsOnLunch(false);
+      setCurrentShift(null);
+      showSuccess("Salida registrada exitosamente");
+      await refreshActivities(); // Refresh activities after successful clock out
     } catch (error) {
       setClockOutError(
         error instanceof Error ? error.message : "Error al registrar salida"
       );
+      showError("Error al registrar salida");
     } finally {
       setClockOutLoading(false);
+    }
+  };
+
+  const handleStartLunch = async () => {
+    try {
+      const response = await apiClient.post("/shifts/start-lunch", {});
+      setIsOnLunch(true);
+      setCurrentShift(response.data);
+      showSuccess("Almuerzo iniciado exitosamente");
+      await refreshActivities(); // Refresh activities after successful lunch start
+    } catch (error) {
+      showError("Error al iniciar almuerzo");
+    }
+  };
+
+  const handleResumeShift = async () => {
+    try {
+      const response = await apiClient.post("/shifts/resume-shift", {});
+      setIsOnLunch(false);
+      setCurrentShift(response.data);
+      showSuccess("Turno reanudado exitosamente");
+      await refreshActivities(); // Refresh activities after successful resume
+    } catch (error) {
+      showError("Error al reanudar turno");
+    }
+  };
+
+  // Determine button states
+  const getButtonState = (
+    buttonType: "clockIn" | "clockOut" | "lunch" | "resume"
+  ) => {
+    // If still loading shift status, disable all buttons
+    if (loadingShift) {
+      return {
+        enabled: false,
+        loading: false,
+        className:
+          "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed",
+      };
+    }
+
+    switch (buttonType) {
+      case "clockIn":
+        return {
+          enabled: !isClockedIn && !clockInLoading,
+          loading: clockInLoading,
+          className:
+            !isClockedIn && !clockInLoading
+              ? "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+              : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed",
+        };
+      case "clockOut":
+        return {
+          enabled: isClockedIn && !isOnLunch && !clockOutLoading,
+          loading: clockOutLoading,
+          className:
+            isClockedIn && !isOnLunch && !clockOutLoading
+              ? "border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+              : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed",
+        };
+      case "lunch":
+        return {
+          enabled: isClockedIn && !isOnLunch,
+          loading: false,
+          className:
+            isClockedIn && !isOnLunch
+              ? "border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 text-orange-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+              : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed",
+        };
+      case "resume":
+        return {
+          enabled: isClockedIn && isOnLunch,
+          loading: false,
+          className:
+            isClockedIn && isOnLunch
+              ? "border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 text-green-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+              : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed",
+        };
+      default:
+        return { enabled: false, loading: false, className: "" };
     }
   };
 
@@ -75,8 +331,10 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <button
                         onClick={handleClockIn}
-                        disabled={clockInLoading}
-                        className="group relative p-6 rounded-2xl border-2 transition-all duration-300 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                        disabled={!getButtonState("clockIn").enabled}
+                        className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          getButtonState("clockIn").className
+                        }`}
                       >
                         <div className="text-center">
                           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white bg-opacity-70 flex items-center justify-center">
@@ -93,7 +351,9 @@ export default function DashboardPage() {
                             </svg>
                           </div>
                           <div className="font-semibold text-sm">
-                            {clockInLoading ? "Registrando..." : "Entrada"}
+                            {getButtonState("clockIn").loading
+                              ? "Registrando..."
+                              : "Entrada"}
                           </div>
                           <div className="text-xs opacity-70 mt-1">
                             Comienza tu jornada
@@ -103,8 +363,10 @@ export default function DashboardPage() {
 
                       <button
                         onClick={handleClockOut}
-                        disabled={clockOutLoading}
-                        className="group relative p-6 rounded-2xl border-2 transition-all duration-300 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                        disabled={!getButtonState("clockOut").enabled}
+                        className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          getButtonState("clockOut").className
+                        }`}
                       >
                         <div className="text-center">
                           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white bg-opacity-70 flex items-center justify-center">
@@ -121,7 +383,9 @@ export default function DashboardPage() {
                             </svg>
                           </div>
                           <div className="font-semibold text-sm">
-                            {clockOutLoading ? "Registrando..." : "Salida"}
+                            {getButtonState("clockOut").loading
+                              ? "Registrando..."
+                              : "Salida"}
                           </div>
                           <div className="text-xs opacity-70 mt-1">
                             Termina tu jornada
@@ -130,8 +394,11 @@ export default function DashboardPage() {
                       </button>
 
                       <button
-                        disabled
-                        className="group relative p-6 rounded-2xl border-2 transition-all duration-300 border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 text-orange-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                        onClick={handleStartLunch}
+                        disabled={!getButtonState("lunch").enabled}
+                        className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          getButtonState("lunch").className
+                        }`}
                       >
                         <div className="text-center">
                           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white bg-opacity-70 flex items-center justify-center">
@@ -159,8 +426,11 @@ export default function DashboardPage() {
                       </button>
 
                       <button
-                        disabled
-                        className="group relative p-6 rounded-2xl border-2 transition-all duration-300 border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 text-green-700 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                        onClick={handleResumeShift}
+                        disabled={!getButtonState("resume").enabled}
+                        className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+                          getButtonState("resume").className
+                        }`}
                       >
                         <div className="text-center">
                           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white bg-opacity-70 flex items-center justify-center">
@@ -201,9 +471,66 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-gray-500 text-center py-8">
-                        No hay actividad reciente para mostrar
-                      </p>
+                      {loadingActivities ? (
+                        <p className="text-gray-500 text-center py-8">
+                          Cargando actividad...
+                        </p>
+                      ) : recentActivities.length === 0 ? (
+                        <div className="text-gray-500 text-center py-8">
+                          <p>No hay actividad reciente para mostrar</p>
+                          <p className="text-xs mt-2">
+                            Debug: recentActivities.length ={" "}
+                            {recentActivities.length}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {recentActivities.map((shift, shiftIndex) => {
+                            console.log(
+                              `Processing shift ${shiftIndex}:`,
+                              shift
+                            );
+                            const shiftInfo = getShiftDisplayInfo(shift);
+                            console.log(`Shift ${shiftIndex} info:`, shiftInfo);
+
+                            return (
+                              <div
+                                key={`shift-${shiftIndex}`}
+                                className="flex items-center justify-between p-4 rounded-lg bg-white shadow-sm border border-gray-100"
+                              >
+                                <div className="flex items-center">
+                                  <div
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center ${shiftInfo.statusColor}`}
+                                  >
+                                    <span className="text-lg">
+                                      {shiftInfo.icon}
+                                    </span>
+                                  </div>
+                                  <div className="ml-4">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      {shiftInfo.statusText}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {formatDate(shiftInfo.time)}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {formatTime(shiftInfo.time)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {formatTime(shiftInfo.time)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {formatDate(shiftInfo.time)}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
