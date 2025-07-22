@@ -89,3 +89,20 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+export function formatRut(rut: string): string {
+  if (!rut) return "";
+
+  // Remove any existing formatting
+  const cleanRut = rut.replace(/[.-]/g, "");
+
+  if (cleanRut.length < 2) return cleanRut;
+
+  const body = cleanRut.slice(0, -1);
+  const dv = cleanRut.slice(-1);
+
+  // Add dots every 3 digits from right to left
+  const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return `${formattedBody}-${dv}`;
+}

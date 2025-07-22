@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { formatRut } from "@/lib/utils";
 import { useState } from "react";
 
 export default function Header() {
@@ -58,7 +59,9 @@ export default function Header() {
                 <p className="text-sm font-medium text-gray-900">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-xs text-gray-500">{user?.rut}</p>
+                <p className="text-xs text-gray-500">
+                  {user?.rut ? formatRut(user.rut) : ""}
+                </p>
               </div>
               <svg
                 className={`w-4 h-4 text-gray-400 transition-transform ${
