@@ -69,25 +69,9 @@ class ApiClient {
     });
   }
 
-  async refreshToken(refreshToken?: string) {
-    if (!refreshToken) {
-      throw new Error("No refresh token provided");
-    }
-    return this.request("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    });
-  }
-
-  async logout() {
-    return this.request("/auth/logout", {
-      method: "POST",
-    });
-  }
-
   // User endpoints
   async getCurrentUser() {
-    return this.request("/auth/me");
+    return this.request("/users/profile");
   }
 
   async updateProfile(userData: Partial<{ name: string; email: string }>) {

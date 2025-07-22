@@ -7,9 +7,10 @@ export default function Header() {
   const { user, logout } = useAuth();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await logout();
+      logout();
+      setIsUserMenuOpen(false);
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -57,7 +58,7 @@ export default function Header() {
                 <p className="text-sm font-medium text-gray-900">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <p className="text-xs text-gray-500">{user?.rut}</p>
               </div>
               <svg
                 className={`w-4 h-4 text-gray-400 transition-transform ${

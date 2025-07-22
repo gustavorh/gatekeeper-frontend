@@ -16,8 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshAuth: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,12 +31,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user;
 
+  // Check if token is expired
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      return Date.now() >= exp;
+    } catch {
+      return true;
+    }
+  };
+
   // Initialize auth state on mount
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        if (token) {
+        if (token && !isTokenExpired(token)) {
           const response = await apiClient.getCurrentUser();
           if (response.success && response.data) {
             setUser(response.data as User);
@@ -46,6 +56,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
           }
+        } else if (token && isTokenExpired(token)) {
+          // Token is expired, clear it
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
         }
       } catch (error) {
         console.error("Failed to initialize auth:", error);
@@ -65,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiClient.login(credentials);
 
       if (response.success && response.data) {
+        // The backend wraps the AuthResponse in response.data
         const authData = response.data as AuthResponse;
 
         // Store tokens
@@ -93,6 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await apiClient.register(data);
 
       if (response.success && response.data) {
+        // The backend wraps the AuthResponse in response.data
         const authData = response.data as AuthResponse;
 
         // Store tokens
@@ -115,51 +131,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    try {
-      await apiClient.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      // Clear local state regardless of API call success
-      setUser(null);
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-    }
-  };
-
-  const refreshAuth = async () => {
-    try {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      const response = await apiClient.refreshToken(refreshToken);
-
-      if (response.success && response.data) {
-        const authData = response.data as AuthResponse;
-
-        // Update tokens
-        localStorage.setItem("accessToken", authData.token);
-        // Note: refreshToken might not be available in all responses
-        if (authData.refreshToken) {
-          localStorage.setItem("refreshToken", authData.refreshToken);
-        }
-
-        // Update user
-        setUser(authData.user);
-      } else {
-        throw new Error("Token refresh failed");
-      }
-    } catch (error) {
-      console.error("Token refresh error:", error);
-      // Clear auth state on refresh failure
-      setUser(null);
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      throw error;
-    }
+  const logout = () => {
+    // Clear local state and tokens
+    setUser(null);
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
   };
 
   const value: AuthContextType = {
@@ -169,7 +145,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    refreshAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
