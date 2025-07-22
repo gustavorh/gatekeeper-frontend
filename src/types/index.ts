@@ -9,6 +9,7 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  roles?: Role[];
 }
 
 export interface Permission {
