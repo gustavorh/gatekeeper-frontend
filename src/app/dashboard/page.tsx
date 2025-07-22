@@ -160,6 +160,17 @@ export default function DashboardPage() {
     });
   };
 
+  // Helper function to format delay time in "00h 00m 00s" format
+  const formatDelayTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    return `${hours.toString().padStart(2, "0")}h ${minutes
+      .toString()
+      .padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`;
+  };
+
   const refreshActivities = async () => {
     try {
       const response = await apiClient.get("/shifts/history");
@@ -604,69 +615,21 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* System Status */}
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-lg font-bold text-gray-900">
-                        Estado del Sistema
-                      </h2>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm text-gray-500">Operativo</span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                      <div className="bg-red-50 rounded-xl p-4 border border-red-100">
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-sm font-medium text-gray-900">
-                              Base de Datos
+                              Tiempo de atraso
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
-                              Conexión estable
+                              Retrasos acumulados
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-green-600">
-                              Online
+                            <span className="text-lg font-bold text-red-600">
+                              {formatDelayTime(0)}
                             </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-sm font-medium text-gray-900">
-                              API Backend
-                            </span>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Servicios activos
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-blue-600">
-                              Online
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-sm font-medium text-gray-900">
-                              Autenticación
-                            </span>
-                            <div className="text-xs text-gray-500 mt-1">
-                              JWT válido
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-yellow-600">
-                              Activo
-                            </span>
+                            <div className="text-xs text-gray-500">total</div>
                           </div>
                         </div>
                       </div>
