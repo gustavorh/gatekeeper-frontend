@@ -9,6 +9,31 @@ import Footer from "@/components/Footer";
 import { apiClient } from "@/lib/api";
 import { useState, useEffect } from "react";
 
+// Analytics data types
+interface WorkHoursSummary {
+  totalWorkedHours: number;
+  totalLunchTime: number;
+  totalBreakTime: number;
+  daysWorked: number;
+  averageWorkedHoursPerDay: number;
+  averageLunchTimePerDay: number;
+  period: "week" | "month";
+  startDate: string;
+  endDate: string;
+  dailyBreakdown: DailyWorkHours[];
+}
+
+interface DailyWorkHours {
+  date: string;
+  workedHours: number;
+  lunchTime: number;
+  breakTime: number;
+  clockInTime: string;
+  clockOutTime?: string;
+  lunchStartTime?: string;
+  lunchEndTime?: string;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
@@ -24,6 +49,13 @@ export default function DashboardPage() {
   const [loadingShift, setLoadingShift] = useState(true);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
+
+  // Analytics states
+  const [weeklyAnalytics, setWeeklyAnalytics] =
+    useState<WorkHoursSummary | null>(null);
+  const [monthlyAnalytics, setMonthlyAnalytics] =
+    useState<WorkHoursSummary | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   // Fetch current shift status on component mount
   useEffect(() => {
@@ -96,8 +128,32 @@ export default function DashboardPage() {
       }
     };
 
+    const fetchAnalytics = async () => {
+      try {
+        setLoadingAnalytics(true);
+
+        // Fetch weekly analytics
+        const weeklyResponse = await apiClient.get(
+          "/analytics/work-hours/current-week"
+        );
+        setWeeklyAnalytics(weeklyResponse.data as WorkHoursSummary);
+
+        // Fetch monthly analytics
+        const monthlyResponse = await apiClient.get(
+          "/analytics/work-hours/current-month"
+        );
+        setMonthlyAnalytics(monthlyResponse.data as WorkHoursSummary);
+      } catch (error) {
+        console.error("Error fetching analytics:", error);
+        showError("Error al cargar estadísticas");
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    };
+
     fetchCurrentShift();
     fetchRecentActivities();
+    fetchAnalytics();
   }, []);
 
   // Helper function to get shift display information
@@ -171,6 +227,39 @@ export default function DashboardPage() {
       .padStart(2, "0")}m ${secs.toString().padStart(2, "0")}s`;
   };
 
+  // Helper function to calculate average clock-in time
+  const getAverageClockInTime = (analytics: WorkHoursSummary | null) => {
+    if (
+      !analytics ||
+      !analytics.dailyBreakdown ||
+      analytics.dailyBreakdown.length === 0
+    ) {
+      return "--:--";
+    }
+
+    const clockInTimes = analytics.dailyBreakdown
+      .filter((day) => day.clockInTime)
+      .map(
+        (day) =>
+          new Date(day.clockInTime).getHours() * 60 +
+          new Date(day.clockInTime).getMinutes()
+      );
+
+    if (clockInTimes.length === 0) {
+      return "--:--";
+    }
+
+    const averageMinutes =
+      clockInTimes.reduce((sum, minutes) => sum + minutes, 0) /
+      clockInTimes.length;
+    const hours = Math.floor(averageMinutes / 60);
+    const minutes = Math.floor(averageMinutes % 60);
+
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
   const refreshActivities = async () => {
     try {
       const response = await apiClient.get("/shifts/history");
@@ -193,6 +282,28 @@ export default function DashboardPage() {
     }
   };
 
+  const refreshAnalytics = async () => {
+    try {
+      setLoadingAnalytics(true);
+
+      // Fetch weekly analytics
+      const weeklyResponse = await apiClient.get(
+        "/analytics/work-hours/current-week"
+      );
+      setWeeklyAnalytics(weeklyResponse.data as WorkHoursSummary);
+
+      // Fetch monthly analytics
+      const monthlyResponse = await apiClient.get(
+        "/analytics/work-hours/current-month"
+      );
+      setMonthlyAnalytics(monthlyResponse.data as WorkHoursSummary);
+    } catch (error) {
+      console.error("Error refreshing analytics:", error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
   const handleClockIn = async () => {
     setClockInLoading(true);
     setClockInError(null);
@@ -203,6 +314,7 @@ export default function DashboardPage() {
       setCurrentShift(response.data);
       showSuccess("Entrada registrada exitosamente");
       await refreshActivities(); // Refresh activities after successful clock in
+      await refreshAnalytics(); // Refresh analytics after successful clock in
     } catch (error) {
       setClockInError(
         error instanceof Error ? error.message : "Error al registrar entrada"
@@ -224,6 +336,7 @@ export default function DashboardPage() {
       setCurrentShift(null);
       showSuccess("Salida registrada exitosamente");
       await refreshActivities(); // Refresh activities after successful clock out
+      await refreshAnalytics(); // Refresh analytics after successful clock out
     } catch (error) {
       setClockOutError(
         error instanceof Error ? error.message : "Error al registrar salida"
@@ -241,6 +354,7 @@ export default function DashboardPage() {
       setCurrentShift(response.data);
       showSuccess("Almuerzo iniciado exitosamente");
       await refreshActivities(); // Refresh activities after successful lunch start
+      await refreshAnalytics(); // Refresh analytics after successful lunch start
     } catch (error) {
       showError("Error al iniciar almuerzo");
     }
@@ -253,6 +367,7 @@ export default function DashboardPage() {
       setCurrentShift(response.data);
       showSuccess("Turno reanudado exitosamente");
       await refreshActivities(); // Refresh activities after successful resume
+      await refreshAnalytics(); // Refresh analytics after successful resume
     } catch (error) {
       showError("Error al reanudar turno");
     }
@@ -573,7 +688,13 @@ export default function DashboardPage() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-blue-600">
-                              0.0
+                              {loadingAnalytics
+                                ? "Cargando..."
+                                : `${
+                                    weeklyAnalytics?.totalWorkedHours?.toFixed(
+                                      1
+                                    ) || 0.0
+                                  }`}
                             </span>
                             <div className="text-xs text-gray-500">hrs</div>
                           </div>
@@ -591,7 +712,9 @@ export default function DashboardPage() {
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-gray-900">
-                              0
+                              {loadingAnalytics
+                                ? "Cargando..."
+                                : `${monthlyAnalytics?.daysWorked || 0}`}
                             </span>
                             <div className="text-xs text-gray-500">días</div>
                           </div>
@@ -609,7 +732,9 @@ export default function DashboardPage() {
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-green-600">
-                              --:--
+                              {loadingAnalytics
+                                ? "Cargando..."
+                                : getAverageClockInTime(weeklyAnalytics)}
                             </span>
                             <div className="text-xs text-gray-500">AM</div>
                           </div>
@@ -619,17 +744,23 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-sm font-medium text-gray-900">
-                              Tiempo de atraso
+                              Tiempo de descanso
                             </span>
                             <div className="text-xs text-gray-500 mt-1">
-                              Retrasos acumulados
+                              Descansos acumulados
                             </div>
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-red-600">
-                              {formatDelayTime(0)}
+                              {loadingAnalytics
+                                ? "Cargando..."
+                                : `${
+                                    weeklyAnalytics?.totalBreakTime?.toFixed(
+                                      1
+                                    ) || 0.0
+                                  }`}
                             </span>
-                            <div className="text-xs text-gray-500">total</div>
+                            <div className="text-xs text-gray-500">hrs</div>
                           </div>
                         </div>
                       </div>
