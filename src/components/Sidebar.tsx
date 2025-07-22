@@ -185,7 +185,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Quick Stats */}
+      {/* Quick Stats
       <div className="mt-8 pt-6 border-t border-gray-200">
         <h3 className="text-sm font-medium text-gray-900 mb-3">
           Resumen Rápido
@@ -211,6 +211,7 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+      */}
     </div>
   );
 }
