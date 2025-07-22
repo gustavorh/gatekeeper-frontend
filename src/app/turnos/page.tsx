@@ -1,47 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "@/lib/api";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
-
-interface Shift {
-  id: string;
-  userId: string;
-  clockInTime: string;
-  clockOutTime?: string;
-  status: "pending" | "active" | "completed";
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ShiftHistoryResponse {
-  shifts: Shift[];
-  total: number;
-}
+import { Shift, ShiftHistoryResponse, ShiftFilters } from "@/types";
 
 export default function TurnosPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalShifts, setTotalShifts] = useState(0);
-  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState<Omit<ShiftFilters, "page">>({
+    startDate: "",
+    endDate: "",
+    status: "",
+    limit: 10,
+  });
 
-  useEffect(() => {
-    fetchShifts();
-  }, [currentPage]);
-
-  const fetchShifts = async () => {
+  const fetchShifts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const offset = (currentPage - 1) * itemsPerPage;
+      const params = new URLSearchParams();
+      params.append("limit", filters.limit.toString());
+      params.append("offset", ((currentPage - 1) * filters.limit).toString());
+
+      if (filters.startDate) {
+        params.append("startDate", filters.startDate);
+      }
+      if (filters.endDate) {
+        params.append("endDate", filters.endDate);
+      }
+      if (filters.status) {
+        params.append("status", filters.status);
+      }
+
       const response = await apiClient.get<ShiftHistoryResponse>(
-        `/shifts/history?limit=${itemsPerPage}&offset=${offset}`
+        `/shifts/history?${params.toString()}`
       );
 
       if (response.success && response.data) {
@@ -56,6 +56,36 @@ export default function TurnosPage() {
     } finally {
       setLoading(false);
     }
+  }, [currentPage, filters]);
+
+  useEffect(() => {
+    fetchShifts();
+  }, [fetchShifts]);
+
+  const handleFilterChange = (
+    key: keyof Omit<ShiftFilters, "page">,
+    value: string | number
+  ) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      startDate: "",
+      endDate: "",
+      status: "",
+      limit: 10,
+    });
+    setCurrentPage(1);
   };
 
   const formatDateTime = (dateString: string) => {
@@ -109,7 +139,9 @@ export default function TurnosPage() {
     );
   };
 
-  const totalPages = Math.ceil(totalShifts / itemsPerPage);
+  const totalPages = Math.ceil(totalShifts / filters.limit);
+  const hasActiveFilters =
+    filters.startDate || filters.endDate || filters.status;
 
   if (loading) {
     return (
@@ -165,6 +197,65 @@ export default function TurnosPage() {
                     </div>
                     <div className="text-sm text-gray-500">
                       Total: {totalShifts} turnos
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Date Range Filters */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Desde
+                      </label>
+                      <input
+                        type="date"
+                        value={filters.startDate}
+                        onChange={(e) =>
+                          handleFilterChange("startDate", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hasta
+                      </label>
+                      <input
+                        type="date"
+                        value={filters.endDate}
+                        onChange={(e) =>
+                          handleFilterChange("endDate", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Estado
+                      </label>
+                      <select
+                        value={filters.status}
+                        onChange={(e) =>
+                          handleFilterChange("status", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Todos</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="active">Activo</option>
+                        <option value="completed">Completado</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={clearFilters}
+                        disabled={!hasActiveFilters}
+                        className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Limpiar Filtros
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -230,10 +321,14 @@ export default function TurnosPage() {
                                 />
                               </svg>
                               <p className="text-lg font-medium">
-                                No hay turnos registrados
+                                {hasActiveFilters
+                                  ? "No se encontraron turnos"
+                                  : "No hay turnos registrados"}
                               </p>
                               <p className="text-sm">
-                                Aún no has registrado ningún turno de trabajo.
+                                {hasActiveFilters
+                                  ? "No hay turnos que coincidan con los filtros aplicados."
+                                  : "Aún no has registrado ningún turno de trabajo."}
                               </p>
                             </div>
                           </td>
@@ -275,13 +370,13 @@ export default function TurnosPage() {
                   <div className="px-6 py-4 border-t border-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-700">
-                        Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
-                        {Math.min(currentPage * itemsPerPage, totalShifts)} de{" "}
+                        Mostrando {(currentPage - 1) * filters.limit + 1} a{" "}
+                        {Math.min(currentPage * filters.limit, totalShifts)} de{" "}
                         {totalShifts} resultados
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => setCurrentPage(currentPage - 1)}
+                          onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
                           className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -291,7 +386,7 @@ export default function TurnosPage() {
                           Página {currentPage} de {totalPages}
                         </span>
                         <button
-                          onClick={() => setCurrentPage(currentPage + 1)}
+                          onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
                           className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

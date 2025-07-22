@@ -55,6 +55,30 @@ export interface RegisterData {
   lastName: string;
 }
 
+// Shift types
+export interface Shift {
+  id: string;
+  userId: string;
+  clockInTime: string;
+  clockOutTime?: string;
+  status: "pending" | "active" | "completed";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftHistoryResponse {
+  shifts: Shift[];
+  total: number;
+}
+
+export interface ShiftFilters {
+  startDate: string;
+  endDate: string;
+  status: string;
+  page: number;
+  limit: number;
+}
+
 // Input DTOs (for sending data to backend)
 export interface CreateUserData {
   rut: string;
