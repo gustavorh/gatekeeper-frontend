@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "./contexts/AuthContext";
-import { NotificationProvider } from "./contexts/NotificationContext";
-import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import ToastContainer from "@/components/ui/ToastContainer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GateKeeper - Control de Acceso",
-  description: "Solución multiplataforma de Control de Acceso",
+  title: "GateKeeper - Access Control",
+  description: "Multi-client access control solution",
 };
 
 export default function RootLayout({
@@ -26,35 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NotificationProvider>
           <AuthProvider>
             {children}
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: "#363636",
-                  color: "#fff",
-                },
-                success: {
-                  duration: 3000,
-                  style: {
-                    background: "#10b981",
-                  },
-                },
-                error: {
-                  duration: 5000,
-                  style: {
-                    background: "#ef4444",
-                  },
-                },
-              }}
-            />
+            <ToastContainer />
           </AuthProvider>
         </NotificationProvider>
       </body>
