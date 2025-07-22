@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import { Shift, ShiftHistoryResponse, ShiftFilters } from "@/types";
+import { formatDate, formatTime, formatTimeOnly } from "@/lib/utils";
 
 export default function TurnosPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -86,17 +87,6 @@ export default function TurnosPage() {
       limit: 10,
     });
     setCurrentPage(1);
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString("es-CL", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   const formatDuration = (startTime: string, endTime?: string) => {
@@ -195,8 +185,11 @@ export default function TurnosPage() {
                         Historial de tus registros de entrada y salida
                       </p>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      Total: {totalShifts} turnos
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {totalShifts}
+                      </div>
+                      <div className="text-sm text-gray-500">turnos</div>
                     </div>
                   </div>
                 </div>
@@ -337,16 +330,14 @@ export default function TurnosPage() {
                         shifts.map((shift) => (
                           <tr key={shift.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(shift.createdAt).toLocaleDateString(
-                                "es-CL"
-                              )}
+                              {formatDate(shift.createdAt)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatDateTime(shift.clockInTime)}
+                              {formatTimeOnly(shift.clockInTime)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {shift.clockOutTime
-                                ? formatDateTime(shift.clockOutTime)
+                                ? formatTimeOnly(shift.clockOutTime)
                                 : "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

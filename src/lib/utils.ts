@@ -52,6 +52,18 @@ export function formatTime(date: string | Date): string {
   return d.toLocaleTimeString("es-ES", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
+export function formatTimeOnly(dateTimeString: string): string {
+  const d = new Date(dateTimeString);
+  return d.toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
 }
 
