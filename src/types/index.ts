@@ -155,6 +155,28 @@ export interface PaginatedResponse<T> {
   path?: string;
 }
 
+// Admin API specific response types
+export interface AdminUsersResponse {
+  users: User[];
+  total: number;
+  page: string;
+  limit: string;
+}
+
+export interface AdminRolesResponse {
+  roles: Role[];
+  total: number;
+  page: string;
+  limit: string;
+}
+
+export interface AdminPermissionsResponse {
+  permissions: Permission[];
+  total: number;
+  page: string;
+  limit: string;
+}
+
 export interface ErrorResponse {
   success: false;
   message: string;
