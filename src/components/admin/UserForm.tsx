@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Role, CreateUserData, UpdateUserData } from "@/types";
+import { Role, CreateUserData, UpdateUserData, UserWithRoles } from "@/types";
 import { adminService } from "@/lib/adminService";
 import { useNotification } from "@/contexts/NotificationContext";
 
 interface UserFormProps {
-  user?: User;
+  user?: UserWithRoles;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -48,7 +48,7 @@ export default function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
       if (response.success && response.data) {
         setRoles(response.data.roles || []);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error loading roles:", error);
     }
   };

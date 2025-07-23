@@ -157,10 +157,10 @@ export interface PaginatedResponse<T> {
 
 // Admin API specific response types
 export interface AdminUsersResponse {
-  users: User[];
+  users: UserWithRoles[];
   total: number;
-  page: string;
-  limit: string;
+  page: number;
+  limit: number;
 }
 
 export interface AdminRolesResponse {

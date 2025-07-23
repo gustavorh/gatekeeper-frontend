@@ -53,7 +53,10 @@ export class AdminService {
       ? `${ADMIN_ENDPOINTS.USERS}?${queryString}`
       : ADMIN_ENDPOINTS.USERS;
 
-    return apiClient.get<AdminUsersResponse>(endpoint);
+    const response = await apiClient.get<{ data: AdminUsersResponse }>(
+      endpoint
+    );
+    return response;
   }
 
   async getUserById(id: string) {

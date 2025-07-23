@@ -1,20 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Role } from "@/types";
+import { UserWithRoles } from "@/types";
 import { adminService } from "@/lib/adminService";
 import { useNotification } from "@/contexts/NotificationContext";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 interface UserListProps {
-  onEditUser: (user: User) => void;
-  onDeleteUser: (user: User) => void;
+  onEditUser: (user: UserWithRoles) => void;
+  onDeleteUser?: (user: UserWithRoles) => void;
 }
 
 export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
   const { showSuccess, showError } = useNotification();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,7 +23,7 @@ export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
   const [itemsPerPage] = useState(10);
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
-    user: User | null;
+    user: UserWithRoles | null;
   }>({
     isOpen: false,
     user: null,
@@ -41,19 +41,32 @@ export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
         itemsPerPage,
         searchTerm
       );
+      console.log("Full response:", response);
       if (response.success && response.data) {
-        setUsers(response.data.users || []);
-        setTotalUsers(response.data.total || 0);
-        setTotalPages(Math.ceil((response.data.total || 0) / itemsPerPage));
+        console.log("Response.data:", response.data);
+        console.log("Response.data.data:", response.data.data);
+        console.log("Response.data.users:", (response.data as any).users);
+
+        // Try different possible structures
+        const users =
+          response.data.data?.users || (response.data as any).users || [];
+        const total =
+          response.data.data?.total || (response.data as any).total || 0;
+
+        setUsers(users);
+        setTotalUsers(total);
+        setTotalPages(Math.ceil(total / itemsPerPage));
       }
-    } catch (error: any) {
-      showError(error.message || "Error al cargar usuarios");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Error al cargar usuarios";
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteUser = (user: User) => {
+  const handleDeleteUser = (user: UserWithRoles) => {
     setDeleteDialog({ isOpen: true, user });
   };
 
@@ -64,8 +77,10 @@ export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
       await adminService.deleteUser(deleteDialog.user.id);
       showSuccess("Usuario eliminado exitosamente");
       loadUsers();
-    } catch (error: any) {
-      showError(error.message || "Error al eliminar usuario");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Error al eliminar usuario";
+      showError(errorMessage);
     } finally {
       setDeleteDialog({ isOpen: false, user: null });
     }
@@ -88,10 +103,23 @@ export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
     });
   };
 
-  const getRoleNames = (user: User) => {
-    // For now, show "Sin roles" since the API doesn't include roles in the list response
-    // TODO: Implement separate call to get user roles or update backend to include roles
-    return "Sin roles";
+  const getRoleNames = (user: UserWithRoles) => {
+    if (!user.roles || user.roles.length === 0) {
+      return "Sin roles";
+    }
+
+    return user.roles.map((role) => role.name).join(", ");
+  };
+
+  const getRoleDetails = (user: UserWithRoles) => {
+    if (!user.roles || user.roles.length === 0) {
+      return null;
+    }
+
+    return user.roles.map((role) => ({
+      name: role.name,
+      permissions: role.permissions.map((p) => p.name).join(", "),
+    }));
   };
 
   return (
@@ -187,7 +215,26 @@ export default function UserList({ onEditUser, onDeleteUser }: UserListProps) {
                     {user.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {getRoleNames(user)}
+                    <div className="space-y-1">
+                      {getRoleNames(user)}
+                      {getRoleDetails(user) && (
+                        <div className="text-xs text-gray-500">
+                          {getRoleDetails(user)?.map((roleDetail, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center space-x-1"
+                            >
+                              <span className="font-medium">
+                                {roleDetail.name}:
+                              </span>
+                              <span>
+                                {roleDetail.permissions || "Sin permisos"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span

@@ -10,25 +10,27 @@ import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import UserList from "@/components/admin/UserList";
 import UserForm from "@/components/admin/UserForm";
-import { User } from "@/types";
+import { UserWithRoles } from "@/types";
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
   const [showForm, setShowForm] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | undefined>(undefined);
+  const [editingUser, setEditingUser] = useState<UserWithRoles | undefined>(
+    undefined
+  );
 
   const handleCreateUser = () => {
     setEditingUser(undefined);
     setShowForm(true);
   };
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = (user: UserWithRoles) => {
     setEditingUser(user);
     setShowForm(true);
   };
 
-  const handleDeleteUser = (user: User) => {
+  const handleDeleteUser = (user: UserWithRoles) => {
     // This is handled in the UserList component
   };
 
