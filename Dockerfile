@@ -4,20 +4,20 @@
     WORKDIR /app
     
     COPY package*.json ./
-    RUN npm ci
+    # Si el repo no tiene package-lock.json, npm ci falla. Este bloque lo maneja:
+    RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
     
     COPY . .
     
-    # Recoge el build arg; si no viene, usa un fallback explícito (mejor que vacío)
+    # Llega desde build args
     ARG NEXT_PUBLIC_API_URL
     ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     
-    # Log visible en Portainer para verificar que llegó la URL
-    RUN echo ">> Building with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+    # Diagnóstico visible en Portainer
+    RUN echo ">> Building with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
+     && [ -n "$NEXT_PUBLIC_API_URL" ] || (echo "ERROR: NEXT_PUBLIC_API_URL vacío"; exit 2)
     
-    # Si llega vacío, aborta con mensaje útil
-    RUN sh -c 'if [ -z "$NEXT_PUBLIC_API_URL" ]; then echo "ERROR: NEXT_PUBLIC_API_URL no definido"; exit 2; fi'
-    
+    RUN node -v && npm -v
     RUN npm run build
     
     # --- Runtime stage ---
@@ -28,7 +28,7 @@
     ENV PORT=8000
     
     COPY package*.json ./
-    RUN npm ci --omit=dev
+    RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
     
     COPY --from=builder /app/.next ./.next
     COPY --from=builder /app/public ./public
@@ -36,4 +36,4 @@
     
     USER nodeuser
     EXPOSE 8000
-    CMD ["sh","-lc","npx next start -p ${PORT:-8000}"]
+    CMD ["sh","-lc","npx next start -p ${PORT:-8000}"]    
