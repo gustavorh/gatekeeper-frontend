@@ -22,7 +22,7 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
-    networks: [app_net]
+    networks: [gatekeeper_net]
     logging:
       driver: "json-file"
       options:
@@ -37,8 +37,8 @@ services:
       for i in $(seq 1 60); do
         wget -qO- http://gatekeeper-backend:3000/health && exit 0 || sleep 2;
       done; exit 0"
-    networks: [app_net]
+    networks: [gatekeeper_net]
 
 networks:
-  app_net:
+  gatekeeper_net:
     external: true
