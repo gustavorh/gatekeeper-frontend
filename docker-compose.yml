@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: https://github.com/gustavorh/gatekeeper-frontend.git
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    container_name: gatekeeper-frontend
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    ports:
+      - "8000:8000"
+    # Espera a que el backend esté sano antes de levantar (best-effort)
+    depends_on:
+      - wait_for_api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [app_net]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # helper que espera /health del backend en la red docker
+  wait_for_api:
+    image: alpine:3.20
+    command: >
+      sh -c "apk add --no-cache wget >/dev/null &&
+      for i in $(seq 1 60); do
+        wget -qO- http://gatekeeper-backend:3000/health && exit 0 || sleep 2;
+      done; exit 0"
+    networks: [app_net]
+
+networks:
+  app_net:
+    external: true

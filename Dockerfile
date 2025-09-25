@@ -1,39 +1,38 @@
-# --- Build stage ---
-    FROM public.ecr.aws/docker/library/node:20-alpine AS builder
-    RUN apk add --no-cache libc6-compat
-    WORKDIR /app
-    
-    COPY package*.json ./
-    # Si el repo no tiene package-lock.json, npm ci falla. Este bloque lo maneja:
-    RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-    
-    COPY . .
-    
-    # Llega desde build args
-    ARG NEXT_PUBLIC_API_URL
-    ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    
-    # Diagnóstico visible en Portainer
-    RUN echo ">> Building with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
-     && [ -n "$NEXT_PUBLIC_API_URL" ] || (echo "ERROR: NEXT_PUBLIC_API_URL vacío"; exit 2)
-    
-    RUN node -v && npm -v
-    RUN npm run build
-    
-    # --- Runtime stage ---
-    FROM public.ecr.aws/docker/library/node:20-alpine AS runner
-    RUN apk add --no-cache libc6-compat && addgroup -S nodejs && adduser -S nodeuser -G nodejs
-    WORKDIR /app
-    ENV NODE_ENV=production
-    ENV PORT=8000
-    
-    COPY package*.json ./
-    RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
-    
-    COPY --from=builder /app/.next ./.next
-    COPY --from=builder /app/public ./public
-    COPY --from=builder /app/next.config.* ./
-    
-    USER nodeuser
-    EXPOSE 8000
-    CMD ["sh","-lc","npx next start -p ${PORT:-8000}"]    
+# ========= build =========
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+RUN npm run build
+
+# ========= runtime =========
+# Opción 1: standalone (recomendado si en next.config.js: output: 'standalone')
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8000
+RUN apk add --no-cache wget
+# Standalone
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 \
+  CMD wget -qO- http://localhost:8000 || exit 1
+# server.js es generado por Next en standalone
+CMD ["node", "server.js"]
+
+# ---- Opción 2 (alternativa): next start ----
+# FROM node:20-alpine AS runtime
+# WORKDIR /app
+# ENV NODE_ENV=production
+# ENV PORT=8000
+# RUN apk add --no-cache wget
+# COPY --from=build /app ./
+# EXPOSE 8000
+# HEALTHCHECK --interval=10s --timeout=5s --retries=10 \
+#   CMD wget -qO- http://localhost:8000 || exit 1
+# CMD ["npm", "run", "start", "--", "-p", "8000"]
