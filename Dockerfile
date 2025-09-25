@@ -1,43 +1,39 @@
 # --- Build stage ---
-FROM public.ecr.aws/docker/library/node:20-alpine AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
+    FROM public.ecr.aws/docker/library/node:20-alpine AS builder
+    RUN apk add --no-cache libc6-compat
+    WORKDIR /app
     
-# Instalar dependencias
-COPY package*.json ./
-RUN npm ci
+    COPY package*.json ./
+    RUN npm ci
     
-# Copiar código
-COPY . .
+    COPY . .
     
-# Inyectar la URL del backend en build (visible en el navegador)
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+    # Recoge el build arg; si no viene, usa un fallback explícito (mejor que vacío)
+    ARG NEXT_PUBLIC_API_URL
+    ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     
-# Compilar
-RUN npm run build
+    # Log visible en Portainer para verificar que llegó la URL
+    RUN echo ">> Building with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
     
-# --- Runtime stage ---
-FROM public.ecr.aws/docker/library/node:20-alpine AS runner
-RUN apk add --no-cache libc6-compat && addgroup -S nodejs && adduser -S nodeuser -G nodejs
-WORKDIR /app
+    # Si llega vacío, aborta con mensaje útil
+    RUN sh -c 'if [ -z "$NEXT_PUBLIC_API_URL" ]; then echo "ERROR: NEXT_PUBLIC_API_URL no definido"; exit 2; fi'
     
-ENV NODE_ENV=production
-ENV PORT=8000
+    RUN npm run build
     
-# Instalar solo dependencias de producción
-COPY package*.json ./
-RUN npm ci --omit=dev
+    # --- Runtime stage ---
+    FROM public.ecr.aws/docker/library/node:20-alpine AS runner
+    RUN apk add --no-cache libc6-compat && addgroup -S nodejs && adduser -S nodeuser -G nodejs
+    WORKDIR /app
+    ENV NODE_ENV=production
+    ENV PORT=8000
     
-# Copiar artefactos de build y estáticos
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-# (opcional pero útil) copia la config de Next si la usas
-COPY --from=builder /app/next.config.* ./
+    COPY package*.json ./
+    RUN npm ci --omit=dev
     
-USER nodeuser
-EXPOSE 8000
+    COPY --from=builder /app/.next ./.next
+    COPY --from=builder /app/public ./public
+    COPY --from=builder /app/next.config.* ./
     
-# Asegura puerto 8000 (respeta $PORT si lo cambias)
-CMD ["sh","-lc","npx next start -p ${PORT:-8000}"]
-    
+    USER nodeuser
+    EXPOSE 8000
+    CMD ["sh","-lc","npx next start -p ${PORT:-8000}"]
