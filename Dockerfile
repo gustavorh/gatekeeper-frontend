@@ -24,15 +24,3 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=10 \
   CMD wget -qO- http://localhost:8000 || exit 1
 # server.js es generado por Next en standalone
 CMD ["node", "server.js"]
-
-# ---- Opción 2 (alternativa): next start ----
-# FROM node:20-alpine AS runtime
-# WORKDIR /app
-# ENV NODE_ENV=production
-# ENV PORT=8000
-# RUN apk add --no-cache wget
-# COPY --from=build /app ./
-# EXPOSE 8000
-# HEALTHCHECK --interval=10s --timeout=5s --retries=10 \
-#   CMD wget -qO- http://localhost:8000 || exit 1
-# CMD ["npm", "run", "start", "--", "-p", "8000"]
