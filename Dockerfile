@@ -20,7 +20,5 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 EXPOSE 8000
-HEALTHCHECK --interval=10s --timeout=5s --retries=10 \
-  CMD wget -qO- http://localhost:8000 || exit 1
 # server.js es generado por Next en standalone
 CMD ["node", "server.js"]
